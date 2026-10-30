@@ -47,6 +47,10 @@ export default function DashboardScreen() {
       router.replace('/(protected)/supply-chain-manager/home' as any);
     } else if (activeRoleKey === 'warehouse-operator') {
       router.replace('/(protected)/warehouse-operator/home' as any);
+    } else if (activeRoleKey === 'procurement-approver') {
+      router.replace('/(protected)/procurement-approver/home' as any);
+    } else if (activeRoleKey === 'administrator') {
+      router.replace('/(protected)/administrator/home' as any);
     }
   }, [activeRoleKey]);
 

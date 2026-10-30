@@ -25,6 +25,7 @@ import {
   INITIAL_WAREHOUSE_KPIS,
   INITIAL_WAREHOUSE_LOCATIONS,
 } from '../data/warehouseMockData';
+import managerService from '../../supply-chain-manager/services/managerService';
 
 type Listener = () => void;
 
@@ -200,6 +201,17 @@ class WarehouseService {
     if (allCompleted) {
       task.status = 'completed';
       task.completedAt = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      managerService.addAuditEvent({
+        id: `EVT-${Date.now().toString().slice(-4)}`,
+        type: 'milestone_completed',
+        actor: 'Rohit Verma',
+        role: 'Warehouse Operator',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        relatedEntityId: task.id,
+        relatedEntityType: 'shipment',
+        description: `Warehouse Task completed: ${task.title} (${task.productSku}) at ${task.warehouseLocation}.`,
+        verificationStatus: 'verified',
+      });
     } else {
       task.status = 'in_progress';
     }
@@ -296,6 +308,19 @@ class WarehouseService {
       relatedEntityId: payload.shipmentId,
     });
 
+    managerService.addAuditEvent({
+      id: `EVT-${Date.now().toString().slice(-4)}`,
+      type: 'milestone_completed',
+      actor: payload.receivedBy,
+      role: 'Warehouse Operator',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      relatedEntityId: payload.shipmentId,
+      relatedEntityType: 'shipment',
+      description: `Goods Receipt confirmed: ${payload.receivedQuantity} units (${payload.damagedQuantity} damaged) of ${payload.productSku} received at ${payload.warehouseDestination}.`,
+      verificationStatus: 'verified',
+      txHash: newReceipt.txHash,
+    });
+
     this.notify();
     return { success: true, receipt: newReceipt };
   }
@@ -352,6 +377,19 @@ class WarehouseService {
       relatedEntityId: payload.productSku,
     });
 
+    managerService.addAuditEvent({
+      id: `EVT-${Date.now().toString().slice(-4)}`,
+      type: 'milestone_completed',
+      actor: payload.reportedBy,
+      role: 'Warehouse Operator',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      relatedEntityId: payload.productSku,
+      relatedEntityType: 'shipment',
+      description: `Damage reported: ${payload.damagedQuantity} units of ${payload.productSku} quarantined for ${payload.damageReason}.`,
+      verificationStatus: 'verified',
+      txHash: newReport.txHash,
+    });
+
     this.notify();
     return { success: true, report: newReport };
   }
@@ -406,6 +444,19 @@ class WarehouseService {
       isRead: false,
       relatedEntityType: 'transfer',
       relatedEntityId: transferId,
+    });
+
+    managerService.addAuditEvent({
+      id: `EVT-${Date.now().toString().slice(-4)}`,
+      type: 'action_started',
+      actor: payload.requestedBy,
+      role: 'Warehouse Operator',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      relatedEntityId: transferId,
+      relatedEntityType: 'shipment',
+      description: `Intra-depot stock transfer requested: ${payload.transferQuantity} units of ${payload.productSku} from ${payload.fromWarehouse} to ${payload.toWarehouse}.`,
+      verificationStatus: 'verified',
+      txHash: newTransfer.txHash,
     });
 
     this.notify();

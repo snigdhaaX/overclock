@@ -226,7 +226,7 @@ export default function SignInScreen() {
 
         {/* Create Account Link */}
         <View style={styles.signupFooter}>
-          <Text style={styles.signupFooterText}>Don't have an account? </Text>
+          <Text style={styles.signupFooterText}>Don&apos;t have an account? </Text>
           <Pressable
             onPress={() => router.push('/(public)/signup')}
             hitSlop={8}
