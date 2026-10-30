@@ -23,14 +23,31 @@ import OperationsHeader from '../../../features/operations-analyst/components/Op
 import OrderCard from '../../../features/operations-analyst/components/OrderCard';
 import RiskDonutChart from '../../../features/operations-analyst/components/RiskDonutChart';
 import SeverityBadge from '../../../features/operations-analyst/components/SeverityBadge';
+import RiskSourceNote from '../../../features/operations-analyst/components/RiskSourceNote';
+import { useOrderRisk } from '../../../features/operations-analyst/hooks/useOrderRisk';
 import operationsService from '../../../features/operations-analyst/services/operationsService';
+import type { SeverityLevel } from '../../../features/operations-analyst/types';
 
 export default function RiskIntelligenceScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'order' | 'inventory' | 'supplier'>('order');
 
-  const riskData = operationsService.getRiskIntelligence();
-  const highRiskOrders = operationsService.getOrders().slice(0, 4);
+  const sampleRiskData = operationsService.getRiskIntelligence();
+  const { orders: scoredOrders, status, source, refresh } = useOrderRisk(operationsService.getOrders());
+  const highRiskOrders = [...scoredOrders].sort((a, b) => b.riskScore - a.riskScore).slice(0, 4);
+
+  // Once scores are live, the summary describes those same orders rather than sample totals.
+  const isLive = status === 'live';
+  const countBySeverity = (severity: SeverityLevel) => scoredOrders.filter((o) => o.severity === severity).length;
+  const riskData = isLive && scoredOrders.length > 0
+    ? {
+        criticalCount: countBySeverity('Critical'),
+        highCount: countBySeverity('High'),
+        mediumCount: countBySeverity('Medium'),
+        lowCount: countBySeverity('Low'),
+        overallScore: Math.round(scoredOrders.reduce((sum, o) => sum + o.riskScore, 0) / scoredOrders.length),
+      }
+    : sampleRiskData;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -75,11 +92,15 @@ export default function RiskIntelligenceScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        <RiskSourceNote status={status} source={source} onRetry={refresh} />
+
         {/* Risk Distribution Donut Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Global Exposure Distribution</Text>
           <Text style={styles.sectionSubtitle}>
-            Aggregated vulnerability index calculated across all 41 active enterprise supply nodes
+            {isLive
+              ? `Scored across ${scoredOrders.length} affected customer orders`
+              : 'Sample totals, shown until live scores are available'}
           </Text>
 
           <View style={{ marginTop: 12 }}>

@@ -28,6 +28,7 @@ import OrderCard from '../../../../../features/operations-analyst/components/Ord
 import SeverityBadge from '../../../../../features/operations-analyst/components/SeverityBadge';
 import StatusBadge from '../../../../../features/operations-analyst/components/StatusBadge';
 import TimelineView from '../../../../../features/operations-analyst/components/TimelineView';
+import { useOrderRisk } from '../../../../../features/operations-analyst/hooks/useOrderRisk';
 import operationsService from '../../../../../features/operations-analyst/services/operationsService';
 
 export default function DisruptionDetailScreen() {
@@ -36,7 +37,7 @@ export default function DisruptionDetailScreen() {
   const [activeTab, setActiveTab] = useState<'overview' | 'timeline' | 'orders'>('overview');
 
   const disruption = operationsService.getDisruptionById(id || 'SHP-101') || operationsService.getDisruptions()[0];
-  const affectedOrders = operationsService.getOrders({ disruptionId: disruption.id });
+  const { orders: affectedOrders } = useOrderRisk(operationsService.getOrders({ disruptionId: disruption.id }));
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>

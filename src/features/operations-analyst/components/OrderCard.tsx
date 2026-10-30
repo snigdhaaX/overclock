@@ -1,7 +1,7 @@
 import { Calendar, ChevronRight, Hash, Layers } from 'lucide-react-native';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { AffectedOrder } from '../types';
+import { AffectedOrder, OrderRiskSource } from '../types';
 import SeverityBadge from './SeverityBadge';
 import StatusBadge from './StatusBadge';
 
@@ -10,7 +10,15 @@ interface OrderCardProps {
   onPress?: () => void;
 }
 
+function sourceLabel(source: OrderRiskSource): string {
+  if (source.kind === 'sample') return 'Sample score, not calculated';
+  if (source.kind === 'formula') return 'PRD risk formula';
+  const chance = source.missProbability === null ? '' : ` · ${Math.round(source.missProbability * 100)}% chance of missing deadline`;
+  return `ML model v${source.modelVersion}${chance}`;
+}
+
 export const OrderCard: React.FC<OrderCardProps> = ({ order, onPress }) => {
+  const source = order.riskSource;
   return (
     <Pressable
       onPress={onPress}
@@ -58,9 +66,9 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, onPress }) => {
               styles.riskScoreValue,
               {
                 color:
-                  order.riskScore >= 80
+                  order.riskScore >= 75
                     ? '#DC2626'
-                    : order.riskScore >= 60
+                    : order.riskScore >= 50
                     ? '#D97706'
                     : '#16A34A',
               },
@@ -72,6 +80,15 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, onPress }) => {
 
         <StatusBadge status={order.status} size="sm" />
       </View>
+
+      {source ? (
+        <View style={styles.sourceRow}>
+          <Text style={styles.sourceText}>{sourceLabel(source)}</Text>
+          {source.topFactors.length > 0 ? (
+            <Text style={styles.factorText}>Why: {source.topFactors.join(' · ')}</Text>
+          ) : null}
+        </View>
+      ) : null}
     </Pressable>
   );
 };
@@ -184,6 +201,19 @@ const styles = StyleSheet.create({
   riskScoreValue: {
     fontSize: 12,
     fontWeight: '800',
+  },
+  sourceRow: {
+    marginTop: 8,
+    gap: 2,
+  },
+  sourceText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  factorText: {
+    fontSize: 11,
+    color: '#64748B',
   },
 });
 

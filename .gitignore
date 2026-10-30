@@ -77,3 +77,9 @@ __pycache__/
 *.sqlite3
 **/backend/data/*.db
 trustchain.db
+
+# Local ML artifacts and datasets
+backend/models/
+backend/data/
+data.csv
+dynamic_supply_chain_logistics_dataset_with_country.csv

@@ -30,6 +30,7 @@ import SeverityBadge from '@/features/operations-analyst/components/SeverityBadg
 import StatusBadge from '@/features/operations-analyst/components/StatusBadge';
 import ManagerBottomNav from '@/features/supply-chain-manager/components/ManagerBottomNav';
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
+import { useOrderRisk } from '@/features/operations-analyst/hooks/useOrderRisk';
 import operationsService from '@/features/operations-analyst/services/operationsService';
 import managerService from '@/features/supply-chain-manager/services/managerService';
 
@@ -41,7 +42,7 @@ export default function DisruptionDetailScreen() {
   const disruption = managerService.getDisruptionById(id || 'SHP-101') || managerService.getDisruptionById('SHP-101')!;
   
   const rawOrders = operationsService.getOrders({ disruptionId: disruption.id });
-  const affectedOrders = rawOrders.length > 0 ? rawOrders : operationsService.getOrders().slice(0, 4);
+  const { orders: affectedOrders } = useOrderRisk(rawOrders.length > 0 ? rawOrders : operationsService.getOrders().slice(0, 4));
 
   const tabs: Array<'Overview' | 'Impact' | 'Affected Orders' | 'Timeline'> = [
     'Overview',

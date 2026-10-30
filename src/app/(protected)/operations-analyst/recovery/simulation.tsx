@@ -26,6 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import OperationsHeader from '../../../../features/operations-analyst/components/OperationsHeader';
 import OrderCard from '../../../../features/operations-analyst/components/OrderCard';
 import StatusBadge from '../../../../features/operations-analyst/components/StatusBadge';
+import { useOrderRisk } from '../../../../features/operations-analyst/hooks/useOrderRisk';
 import operationsService from '../../../../features/operations-analyst/services/operationsService';
 
 export default function SimulationResultsScreen() {
@@ -37,7 +38,7 @@ export default function SimulationResultsScreen() {
 
   const planId = params.planId || 'RP-001';
   const plan = operationsService.getRecoveryPlanById(planId) || operationsService.getRecoveryPlans()[0];
-  const affectedOrders = operationsService.getOrders({ disruptionId: plan.relatedDisruptionId });
+  const { orders: affectedOrders } = useOrderRisk(operationsService.getOrders({ disruptionId: plan.relatedDisruptionId }));
 
   const handleReRunSimulation = () => {
     setIsSimulating(true);

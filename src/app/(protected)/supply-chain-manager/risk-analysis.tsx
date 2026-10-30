@@ -28,7 +28,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import RiskSourceNote from '@/features/operations-analyst/components/RiskSourceNote';
 import SeverityBadge from '@/features/operations-analyst/components/SeverityBadge';
+import { useOrderRisk } from '@/features/operations-analyst/hooks/useOrderRisk';
+import operationsService from '@/features/operations-analyst/services/operationsService';
 import ManagerBottomNav from '@/features/supply-chain-manager/components/ManagerBottomNav';
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
 import managerService from '@/features/supply-chain-manager/services/managerService';
@@ -103,6 +106,20 @@ export default function RiskBusinessImpactScreen() {
   ];
 
   // Financial Breakdown Data
+  const { orders: scoredOrders, status: riskStatus, source: riskSource, refresh: refreshRisk } = useOrderRisk(operationsService.getOrders());
+  const rankedOrders = ordersAtRisk
+    .map((order) => {
+      const scored = scoredOrders.find((o) => o.id === order.id);
+      return scored && riskStatus === 'live' ? { ...order, riskScore: scored.riskScore, severity: scored.severity } : order;
+    })
+    .sort((a, b) => b.riskScore - a.riskScore);
+
+  const totalOrders = scoredOrders.length;
+  const highCount = scoredOrders.filter((o) => o.severity === 'Critical' || o.severity === 'High').length;
+  const mediumCount = scoredOrders.filter((o) => o.severity === 'Medium').length;
+  const lowCount = scoredOrders.filter((o) => o.severity === 'Low').length;
+  const percentOf = (count: number) => (totalOrders > 0 ? Math.round((count / totalOrders) * 100) : 0);
+
   const financialData = {
     totalRevenueAtRisk: '$249,400',
     estimatedRecoveryCost: '$34,200',
@@ -237,22 +254,22 @@ export default function RiskBusinessImpactScreen() {
             <View style={styles.kpiRow}>
               <View style={styles.kpiCard}>
                 <Text style={styles.kpiLabel}>Total Orders</Text>
-                <Text style={styles.kpiVal}>8 Orders</Text>
+                <Text style={styles.kpiVal}>{totalOrders} Orders</Text>
                 <Text style={styles.kpiSub}>Across 5 hubs</Text>
               </View>
               <View style={[styles.kpiCard, { borderColor: '#FECACA' }]}>
                 <Text style={styles.kpiLabel}>Critical / High</Text>
-                <Text style={[styles.kpiVal, { color: '#DC2626' }]}>3 Orders</Text>
+                <Text style={[styles.kpiVal, { color: '#DC2626' }]}>{highCount} Orders</Text>
                 <Text style={styles.kpiSub}>Immediate SLA risk</Text>
               </View>
               <View style={styles.kpiCard}>
                 <Text style={styles.kpiLabel}>Medium Risk</Text>
-                <Text style={[styles.kpiVal, { color: '#D97706' }]}>3 Orders</Text>
+                <Text style={[styles.kpiVal, { color: '#D97706' }]}>{mediumCount} Orders</Text>
                 <Text style={styles.kpiSub}>Buffer absorbing</Text>
               </View>
               <View style={styles.kpiCard}>
                 <Text style={styles.kpiLabel}>Low Risk</Text>
-                <Text style={[styles.kpiVal, { color: '#16A36A' }]}>2 Orders</Text>
+                <Text style={[styles.kpiVal, { color: '#16A36A' }]}>{lowCount} Orders</Text>
                 <Text style={styles.kpiSub}>On-schedule SLA</Text>
               </View>
             </View>
@@ -266,23 +283,23 @@ export default function RiskBusinessImpactScreen() {
 
               {/* Stacked Proportional Bar */}
               <View style={styles.stackedBarContainer}>
-                <View style={[styles.stackedSegment, { flex: 38, backgroundColor: '#DC2626' }]} />
-                <View style={[styles.stackedSegment, { flex: 37, backgroundColor: '#D97706' }]} />
-                <View style={[styles.stackedSegment, { flex: 25, backgroundColor: '#16A36A' }]} />
+                <View style={[styles.stackedSegment, { flex: highCount, backgroundColor: '#DC2626' }]} />
+                <View style={[styles.stackedSegment, { flex: mediumCount, backgroundColor: '#D97706' }]} />
+                <View style={[styles.stackedSegment, { flex: lowCount, backgroundColor: '#16A36A' }]} />
               </View>
 
               <View style={styles.legendRow}>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: '#DC2626' }]} />
-                  <Text style={styles.legendText}>High / Critical: 38% (3)</Text>
+                  <Text style={styles.legendText}>High / Critical: {percentOf(highCount)}% ({highCount})</Text>
                 </View>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: '#D97706' }]} />
-                  <Text style={styles.legendText}>Medium: 37% (3)</Text>
+                  <Text style={styles.legendText}>Medium: {percentOf(mediumCount)}% ({mediumCount})</Text>
                 </View>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: '#16A36A' }]} />
-                  <Text style={styles.legendText}>Low: 25% (2)</Text>
+                  <Text style={styles.legendText}>Low: {percentOf(lowCount)}% ({lowCount})</Text>
                 </View>
               </View>
             </View>
@@ -294,7 +311,9 @@ export default function RiskBusinessImpactScreen() {
                 <Text style={styles.orderCountLabel}>Ranked by Risk Score</Text>
               </View>
 
-              {ordersAtRisk.map((order) => (
+              <RiskSourceNote status={riskStatus} source={riskSource} onRetry={refreshRisk} />
+
+              {rankedOrders.map((order) => (
                 <View key={order.id} style={styles.orderItemCard}>
                   <View style={styles.orderItemTop}>
                     <View style={styles.orderIdGroup}>
@@ -308,9 +327,9 @@ export default function RiskBusinessImpactScreen() {
                           styles.scoreVal,
                           {
                             color:
-                              order.riskScore >= 80
+                              order.riskScore >= 75
                                 ? '#DC2626'
-                                : order.riskScore >= 60
+                                : order.riskScore >= 50
                                 ? '#D97706'
                                 : '#16A36A',
                           },

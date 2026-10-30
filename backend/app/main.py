@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .blockchain.routes import router as blockchain_router
 from .blockchain.database import init_db
+from .risk.routes import router as risk_router
 
 app = FastAPI(
     title="TRUSTCHAIN Disruption Recovery & Blockchain Governance API",
@@ -20,6 +21,7 @@ app.add_middleware(
 
 # Include blockchain module
 app.include_router(blockchain_router)
+app.include_router(risk_router)
 
 @app.on_event("startup")
 def on_startup():

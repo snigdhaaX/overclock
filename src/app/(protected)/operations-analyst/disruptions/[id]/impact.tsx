@@ -27,6 +27,7 @@ import OperationsHeader from '../../../../../features/operations-analyst/compone
 import OrderCard from '../../../../../features/operations-analyst/components/OrderCard';
 import SeverityBadge from '../../../../../features/operations-analyst/components/SeverityBadge';
 import StatusBadge from '../../../../../features/operations-analyst/components/StatusBadge';
+import { useOrderRisk } from '../../../../../features/operations-analyst/hooks/useOrderRisk';
 import operationsService from '../../../../../features/operations-analyst/services/operationsService';
 
 export default function ImpactAnalysisScreen() {
@@ -37,7 +38,7 @@ export default function ImpactAnalysisScreen() {
   const disruptionId = id || 'SHP-101';
   const disruption = operationsService.getDisruptionById(disruptionId) || operationsService.getDisruptions()[0];
   const impact = operationsService.getImpactSummary(disruptionId);
-  const orders = operationsService.getOrders({ disruptionId });
+  const { orders } = useOrderRisk(operationsService.getOrders({ disruptionId }));
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>

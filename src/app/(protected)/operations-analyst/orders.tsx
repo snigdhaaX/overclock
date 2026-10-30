@@ -15,7 +15,9 @@ import FilterChips from '../../../features/operations-analyst/components/FilterC
 import OperationsBottomNav from '../../../features/operations-analyst/components/OperationsBottomNav';
 import OperationsHeader from '../../../features/operations-analyst/components/OperationsHeader';
 import OrderCard from '../../../features/operations-analyst/components/OrderCard';
+import RiskSourceNote from '../../../features/operations-analyst/components/RiskSourceNote';
 import SearchBar from '../../../features/operations-analyst/components/SearchBar';
+import { useOrderRisk } from '../../../features/operations-analyst/hooks/useOrderRisk';
 import operationsService from '../../../features/operations-analyst/services/operationsService';
 
 export default function AffectedOrdersScreen() {
@@ -31,13 +33,15 @@ export default function AffectedOrdersScreen() {
     { key: 'Medium', label: 'Medium Risk' },
   ];
 
-  const orders = operationsService.getOrders({
-    search,
-    severity: selectedSeverity,
-  });
+  // Severity comes from the live score, so it is filtered after scoring, not on the sample value.
+  const { orders: scoredOrders, status, source, refresh } = useOrderRisk(operationsService.getOrders({ search }));
+  const orders = scoredOrders
+    .filter((o) => selectedSeverity === 'All' || o.severity === selectedSeverity)
+    .sort((a, b) => b.riskScore - a.riskScore);
 
   const onRefresh = () => {
     setRefreshing(true);
+    refresh();
     setTimeout(() => {
       setRefreshing(false);
     }, 500);
@@ -71,6 +75,7 @@ export default function AffectedOrdersScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        ListHeaderComponent={<RiskSourceNote status={status} source={source} onRetry={refresh} />}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} />
         }

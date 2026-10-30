@@ -36,6 +36,14 @@ export interface Disruption {
   affectedOrderIds: string[];
 }
 
+export interface OrderRiskSource {
+  kind: 'ml' | 'formula' | 'sample';
+  modelVersion: number | null;
+  missProbability: number | null;
+  topFactors: string[];
+  dataSources: string[];
+}
+
 export interface AffectedOrder {
   id: string;
   customer: string;
@@ -49,6 +57,7 @@ export interface AffectedOrder {
   destination: string;
   status: 'At Risk' | 'Delayed' | 'Mitigated' | 'On Schedule';
   revenue: number;
+  riskSource?: OrderRiskSource;
 }
 
 export interface ImpactSummary {
