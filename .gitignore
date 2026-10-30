@@ -26,12 +26,16 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS
+# macOS & OS files
 .DS_Store
+Thumbs.db
 *.pem
 
 # local env files
 .env*.local
+.env
+.env.local
+*.local
 
 # typescript
 *.tsbuildinfo
@@ -41,3 +45,19 @@ example
 # generated native folders
 /ios
 /android
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Databases & local data
+*.db
+*.sqlite3
+**/backend/data/*.db
