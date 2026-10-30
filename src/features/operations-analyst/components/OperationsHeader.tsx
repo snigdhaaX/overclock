@@ -93,7 +93,7 @@ export const OperationsHeader: React.FC<OperationsHeaderProps> = ({
         <View style={styles.textContainer}>
           <Text style={styles.greetingTitle}>Good morning, {userName}</Text>
           <Text style={styles.greetingSubtitle}>
-            Here's what's happening across your supply chain today.
+            Here&apos;s what&apos;s happening across your supply chain today.
           </Text>
         </View>
       ) : title ? (

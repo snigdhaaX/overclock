@@ -254,10 +254,20 @@ Critical rules live in the database itself, so a bug in the app can't break them
 | Recovery suggestions | 🟡 Partial | Rule-checked and ranked by risk; OR-Tools and LLM summaries aren't built |
 | Approvals and execution | ✅ Built | Separation of duties, simulated execution, audit chain |
 | On-chain anchoring | 🟡 Partial | Code exists but hasn't been run on a live chain; the app says so until it's confirmed |
-| Mobile app | 🟡 Partial | Analyst and manager flows use live data; warehouse and supplier screens are still mock |
+| Mobile app | 🟡 Partial | Screens for all five roles; analyst and manager flows use live data; warehouse, procurement, admin and supplier screens are still mock |
 
 > [!WARNING]
 > **Demo only.** On-chain signing uses server-held testnet wallets instead of user wallets, and all data is labelled demo data. TRUSTCHAIN is now app-only, so use Android or iOS. The web build crashes because `react-native-maps` has no web support.
+
+## 📱 Five roles, one app
+
+| Role | What they do in the app | Data |
+|---|---|---|
+| **Operations Analyst** | Investigates disruptions, reviews risk, submits recovery plans | Live |
+| **Supply Chain Manager** | Approves plans, confirms execution, reviews the audit trail | Live, with some mock screens |
+| **Warehouse Operator** | Scans goods, receives stock, reports damage, confirms transfers | Mock |
+| **Procurement Approver** | Reviews requests and supplier alternatives, approves purchases | Mock |
+| **Administrator** | Manages users, roles, facilities and integrations | Mock |
 
 ## 🚀 Quick start
 

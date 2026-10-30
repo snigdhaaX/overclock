@@ -501,6 +501,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   testScroll: {
+    flexGrow: 0,
     paddingHorizontal: 14,
   },
   testChip: {

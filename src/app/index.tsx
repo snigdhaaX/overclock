@@ -92,7 +92,7 @@ export default function LandingScreen() {
             </View>
 
             <Text style={styles.headline}>
-              Don't just detect{'\n'}disruptions.{'\n'}
+              Don&apos;t just detect{'\n'}disruptions.{'\n'}
               <Text style={styles.headlineAccent}>Resolve their{'\n'}consequences.</Text>
             </Text>
 

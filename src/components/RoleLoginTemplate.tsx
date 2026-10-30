@@ -59,6 +59,10 @@ export const RoleLoginTemplate: React.FC<RoleLoginTemplateProps> = ({
         router.replace('/(protected)/supply-chain-manager/home' as any);
       } else if (session.user.assignedRole === 'warehouse-operator') {
         router.replace('/(protected)/warehouse-operator/home' as any);
+      } else if (session.user.assignedRole === 'procurement-approver') {
+        router.replace('/(protected)/procurement-approver/home' as any);
+      } else if (session.user.assignedRole === 'administrator') {
+        router.replace('/(protected)/administrator/home' as any);
       } else {
         router.replace(`/(protected)/dashboard?role=${session.user.assignedRole}`);
       }
