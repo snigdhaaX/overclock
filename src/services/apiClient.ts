@@ -21,9 +21,9 @@ export function hasAccessToken() {
   return accessToken !== null;
 }
 
-export async function apiRequest<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+export async function apiRequest<T>(path: string, options: { method?: string; body?: unknown; timeoutMs?: number } = {}): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? REQUEST_TIMEOUT_MS);
   let response: Response;
   try {
     response = await fetch(`${getApiBaseUrl()}/api/v1${path}`, {

@@ -58,6 +58,7 @@ export interface AffectedOrder {
   status: 'At Risk' | 'Delayed' | 'Mitigated' | 'On Schedule';
   revenue: number;
   riskSource?: OrderRiskSource;
+  recoveryTier?: 'P1' | 'P2' | 'P3' | null;
 }
 
 export interface ImpactSummary {

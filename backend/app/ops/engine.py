@@ -16,6 +16,9 @@ from ..models.inventory import CustomerOrder, FulfilmentAllocation, Inventory, I
 from ..models.recovery import Approval, ExecutionAction, ExecutionRun, RecoveryPlan, RecoveryPlanAction
 from ..models.supply_chain import Carrier, CarrierEvent, Product, Shipment, ShipmentItem, Supplier, SupplierProduct, Warehouse
 from ..risk import service as risk_service, training
+from ..recommendations import ai
+from ..recommendations import engine as recommendations
+from ..recommendations.engine import supplier_reliability  # noqa: F401  (used by routes)
 from ..risk.models import RiskExposure
 from . import chain
 
@@ -185,7 +188,7 @@ def score_line(db: Session, org: Organization, line: OrderItem, order: CustomerO
         "supplier_id": db.get(Supplier, shipment.supplier_id).code, "carrier_id": db.get(Carrier, shipment.carrier_id).code, "snapshot_at": now,
         "hours_to_deadline": (aware(order.required_delivery_date) - now).total_seconds() / 3600, "required_qty": float(line.required_quantity),
         "shortage_qty": shortage, "reported_delay_hours": lateness_hours, "priority_tier": order.priority_tier,
-        "route_risk": None, "weather_severity": None, "customs_hours": None,
+        "route_risk": shipment.route_risk, "weather_severity": shipment.weather_severity, "customs_hours": shipment.customs_hours,
     }
     scored = risk_service.score_exposure(db, org.slug, item)
     db.add(RiskAssessment(
@@ -211,12 +214,6 @@ def _record_outcomes(db: Session, org: Organization, shipment: Shipment, arrived
 
 # --- Recovery suggestions ---
 
-TRANSFER_HOURS = 24.0
-TRANSFER_UNIT_COST = 2.0
-EXPEDITE_DELAY_SAVED = 0.6
-EXPEDITE_UNIT_COST = 6.0
-
-
 def affected_lines(db: Session, disruption: Disruption) -> List[Dict[str, Any]]:
     assessment = db.query(ImpactAssessment).filter_by(disruption_id=disruption.id).order_by(ImpactAssessment.assessment_number.desc()).first()
     if assessment is None:
@@ -231,136 +228,20 @@ def affected_lines(db: Session, disruption: Disruption) -> List[Dict[str, Any]]:
     return sorted(out, key=lambda e: (-(e["risk"].score if e["risk"] else 0), aware(e["order"].required_delivery_date), e["order"].code))
 
 
-def _transfer_plan(db: Session, lines, destination: Warehouse) -> Dict[str, Any]:
-    actions, notes = [], []
-    used: Dict[Any, float] = {}
-    now = utcnow()
-    for e in lines:
-        need = float(e["impact"].shortage_quantity)
-        hours = (aware(e["order"].required_delivery_date) - now).total_seconds() / 3600
-        if hours < TRANSFER_HOURS:
-            notes.append(f"{e['order'].code}: a transfer takes {int(TRANSFER_HOURS)}h, and its deadline is sooner.")
-            continue
-        stocks = db.query(Inventory).filter(Inventory.organization_id == e["order"].organization_id, Inventory.product_id == e["line"].product_id, Inventory.warehouse_id != destination.id).all()
-        for stock in sorted(stocks, key=lambda s: -float(s.available_quantity or 0)):
-            free = float(stock.available_quantity or 0) - used.get(stock.id, 0.0)
-            warehouse = db.get(Warehouse, stock.warehouse_id)
-            if free <= 0:
-                notes.append(f"{warehouse.code}: {float(stock.on_hand_quantity):.0f} on hand, but none is free once reservations and safety stock are excluded.")
-                continue
-            quantity = min(free, need)
-            used[stock.id] = used.get(stock.id, 0.0) + quantity
-            need -= quantity
-            actions.append({
-                "type": "STOCK_TRANSFER", "order": e["order"].code, "quantity": quantity, "cost": round(quantity * TRANSFER_UNIT_COST, 2), "lead": "1 day",
-                "title": f"Transfer {quantity:.0f} units for {e['order'].code}", "source": warehouse.code, "destination": destination.code,
-                "description": f"Move unreserved {e['product'].name} from {warehouse.name}.", "inventory_id": str(stock.id), "product_id": str(e["line"].product_id), "warehouse_to": str(destination.id),
-            })
-            if need <= 0:
-                break
-        if need > 0:
-            notes.append(f"{e['order'].code}: {need:.0f} units can't be covered by free stock.")
-    return {"actions": actions, "notes": notes}
-
-
-def _supplier_plan(db: Session, lines, shipment: Shipment, org_slug: str) -> Dict[str, Any]:
-    actions, notes = [], []
-    booked: Dict[Any, float] = {}
-    now = utcnow()
-    for e in lines:
-        need = float(e["impact"].shortage_quantity)
-        hours = (aware(e["order"].required_delivery_date) - now).total_seconds() / 3600
-        options = db.query(SupplierProduct).filter(SupplierProduct.product_id == e["line"].product_id, SupplierProduct.supplier_id != shipment.supplier_id).all()
-        chosen = None
-        for option in sorted(options, key=lambda o: o.lead_time_days):
-            supplier = db.get(Supplier, option.supplier_id)
-            quantity = max(need, float(option.minimum_order_quantity))
-            # Capacity is shared across this plan's orders, so one supplier can't be promised twice.
-            remaining = None if option.production_capacity is None else float(option.production_capacity) - booked.get(option.id, 0.0)
-            if option.lead_time_days * 24 > hours:
-                notes.append(f"{supplier.name}: {option.lead_time_days}-day lead time misses {e['order'].code}.")
-            elif remaining is not None and remaining < quantity:
-                notes.append(f"{supplier.name}: only {max(remaining, 0):.0f} units of capacity left for {e['order'].code}.")
-            else:
-                chosen = (option, supplier, quantity)
-                break
-        if not options:
-            notes.append(f"No alternative supplier exists for {e['product'].name}.")
-        if chosen is None:
-            continue
-        option, supplier, quantity = chosen
-        booked[option.id] = booked.get(option.id, 0.0) + quantity
-        reliability = supplier_reliability(db, org_slug, supplier.code)
-        rate = f"{reliability['on_time_rate']:.0%} on time" if reliability["on_time_rate"] is not None else "no track record yet"
-        actions.append({
-            "type": "ALTERNATIVE_SUPPLIER", "order": e["order"].code, "quantity": quantity, "cost": round(quantity * float(option.unit_cost or 0), 2), "lead": f"{option.lead_time_days} days",
-            "title": f"Buy {quantity:.0f} units from {supplier.name}", "source": supplier.name, "destination": e["order"].delivery_destination or "Customer",
-            "description": f"{supplier.name} ({rate}) for {e['order'].code}.", "supplier_code": supplier.code,
-        })
-    return {"actions": actions, "notes": notes}
-
-
-def _expedite_plan(db: Session, lines, shipment: Shipment) -> Dict[str, Any]:
-    actions, notes = [], []
-    now = utcnow()
-    saved = (aware(shipment.current_eta) - aware(shipment.expected_arrival_at)).total_seconds() / 3600 * EXPEDITE_DELAY_SAVED
-    new_eta = aware(shipment.current_eta) - datetime.timedelta(hours=saved)
-    carrier = db.query(Carrier).filter(Carrier.organization_id == shipment.organization_id, Carrier.id != shipment.carrier_id).order_by(Carrier.capacity.desc()).first()
-    for e in lines:
-        quantity = float(e["impact"].shortage_quantity)
-        if new_eta > aware(e["order"].required_delivery_date):
-            notes.append(f"{e['order'].code}: expediting saves {saved:.0f}h, which still misses its date.")
-            continue
-        if carrier is None or (carrier.capacity is not None and float(carrier.capacity) < quantity):
-            notes.append(f"{e['order'].code}: no other carrier has the capacity.")
-            continue
-        actions.append({
-            "type": "SHIPMENT_REROUTE", "order": e["order"].code, "quantity": quantity, "cost": round(quantity * EXPEDITE_UNIT_COST, 2), "lead": f"saves {saved:.0f}h",
-            "title": f"Reroute {quantity:.0f} units for {e['order'].code}", "source": shipment.origin or shipment.code, "destination": carrier.name,
-            "description": f"Move onto {carrier.name}, saving about {saved:.0f} hours.",
-        })
-    return {"actions": actions, "notes": notes}
-
-
 def build_candidates(db: Session, org: Organization, disruption: Disruption) -> List[Dict[str, Any]]:
     if disruption.affected_entity_type != "shipment":
         return []
-    shipment = db.get(Shipment, disruption.affected_entity_id)
     lines = affected_lines(db, disruption)
-    if not lines:
-        return []
-    destination = db.get(Warehouse, shipment.destination_warehouse_id)
-    total_units = sum(float(e["impact"].shortage_quantity) for e in lines)
-    built = [
-        ("transfer", "Reallocate free stock", "Move unreserved stock from other warehouses to the highest-risk orders first.", _transfer_plan(db, lines, destination)),
-        ("supplier", "Buy from an alternative supplier", "Use suppliers whose lead time and capacity meet the deadline.", _supplier_plan(db, lines, shipment, org.slug)),
-        ("reroute", "Reroute with another carrier", "Move the delayed goods onto a faster carrier where that meets the deadline.", _expedite_plan(db, lines, shipment)),
-    ]
-    candidates = []
-    for name, title, strategy, result in built:
-        protected_orders = {a["order"] for a in result["actions"]}
-        protected_units = sum(float(e["impact"].shortage_quantity) for e in lines if e["order"].code in protected_orders)
-        covered = sum(a["quantity"] for a in result["actions"])
-        coverage = min(protected_units, covered) / total_units if total_units else 0
-        candidates.append({
-            "key": f"RP-{disruption.code}-{name}"[:31], "title": title, "strategy": strategy, "actions": result["actions"], "notes": result["notes"],
-            "cost": round(sum(a["cost"] for a in result["actions"]), 2), "coverage": coverage, "feasible": bool(result["actions"]),
-            "orders_protected": len(protected_orders), "orders_total": len(lines), "disruption": disruption.code,
-        })
-    candidates.sort(key=lambda c: (-c["coverage"], c["cost"]))
-    for rank, candidate in enumerate(candidates):
-        candidate["label"] = "Optimal Recommendation" if rank == 0 and candidate["feasible"] else "Alternative"
-    return candidates
+    return recommendations.generate(db, org, disruption, lines) if lines else []
 
 
-def supplier_reliability(db: Session, org_slug: str, code: str) -> Dict[str, Any]:
-    """Calculated only from recorded outcomes. No history means no score (PRD 6.23)."""
-    resolved, missed = db.query(func.count(RiskExposure.id), func.coalesce(func.sum(RiskExposure.missed_deadline), 0)).filter(
-        RiskExposure.organization_id == org_slug, RiskExposure.supplier_id == code, RiskExposure.missed_deadline.isnot(None)
-    ).one()
-    if not resolved or resolved < 10:
-        return {"code": code, "outcomes": int(resolved or 0), "on_time_rate": None}
-    return {"code": code, "outcomes": int(resolved), "on_time_rate": 1 - float(missed) / int(resolved)}
+def explain_recovery(db: Session, org: Organization, disruption_code: str) -> Dict[str, Any]:
+    """AI advice about the checked options. Any AI failure returns "unavailable" and changes nothing else."""
+    disruption = db.query(Disruption).filter_by(organization_id=org.id, code=disruption_code).first()
+    if disruption is None:
+        raise WorkflowError(404, "DISRUPTION_NOT_FOUND", f"Disruption {disruption_code} doesn't exist.")
+    lines = affected_lines(db, disruption) if disruption.affected_entity_type == "shipment" else []
+    return ai.explain_options(db, org, disruption, lines, build_candidates(db, org, disruption), audit=audit)
 
 
 # --- Plans ---
@@ -536,11 +417,26 @@ def _simulate_transfer(db: Session, org: Organization, user: User, params: Dict[
 
 
 def _mitigate_orders(db: Session, org: Organization, disruption: Disruption, plan: RecoveryPlan) -> None:
-    protected = {a.parameters["order"] for a in db.query(RecoveryPlanAction).filter_by(plan_id=plan.id)}
+    covered: Dict[str, float] = {}
+    fully_covered = set()
+    for action in db.query(RecoveryPlanAction).filter_by(plan_id=plan.id):
+        for code in action.parameters["orders"]:
+            if action.action_type == "SHIPMENT_REROUTE":
+                fully_covered.add(code)
+            else:
+                covered[code] = covered.get(code, 0.0) + action.parameters["quantity"]
     shipment = db.get(Shipment, disruption.affected_entity_id)
+    remaining_shortage = False
     for e in affected_lines(db, disruption):
-        if e["order"].code in protected:
-            score_line(db, org, e["line"], e["order"], shipment, 0.0, 0.0, disruption)
+        code = e["order"].code
+        short = float(e["impact"].shortage_quantity)
+        left = 0.0 if code in fully_covered else max(short - covered.get(code, 0.0), 0.0)
+        if code in fully_covered or code in covered:
+            # A partly covered order keeps its remaining shortage and delay, so it stays at risk.
+            score_line(db, org, e["line"], e["order"], shipment, left, float(e["impact"].expected_delay_hours) if left > 0 else 0.0, disruption)
+        if left > 0 and code in covered:
+            remaining_shortage = True
+    disruption.status = "RESOLVING" if remaining_shortage else "RESOLVED"
 
 
 def reconcile_chain(db: Session, org: Organization) -> None:

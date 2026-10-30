@@ -31,6 +31,11 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, onPress }) => {
           <View style={styles.disruptionTag}>
             <Text style={styles.disruptionTagText}>Ref: {order.associatedDisruptionId}</Text>
           </View>
+          {order.recoveryTier ? (
+            <View style={styles.disruptionTag}>
+              <Text style={styles.disruptionTagText}>{order.recoveryTier}</Text>
+            </View>
+          ) : null}
         </View>
         <SeverityBadge severity={order.severity} size="sm" />
       </View>

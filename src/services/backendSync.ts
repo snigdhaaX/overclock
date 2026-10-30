@@ -85,3 +85,31 @@ export interface PlanVerification {
 }
 
 export const verifyPlan = (planId: string) => apiRequest<PlanVerification>(`/blockchain/verify/plan/${encodeURIComponent(planId)}`);
+
+export interface AiPlanExplanation {
+  plan_id: string;
+  explanation: string;
+  advantages: string[];
+  disadvantages: string[];
+  required_validation: string[];
+  confidence: 'LOW' | 'MEDIUM' | 'HIGH';
+}
+
+export type AiRecommendation =
+  | { status: 'AVAILABLE'; model: string; generated_at: string; advisory_notice: string; overview: string; recommended_plan_id: string; explanations: AiPlanExplanation[] }
+  | { status: 'UNAVAILABLE'; reason: string; message: string };
+
+const UNAVAILABLE: AiRecommendation = {
+  status: 'UNAVAILABLE',
+  reason: 'UNREACHABLE',
+  message: 'AI explanations are unavailable right now. The checked options below are still accurate and can be used.',
+};
+
+/** Never throws: if AI can't answer for any reason, the screen says so and everything else keeps working. */
+export async function getAiRecommendation(disruptionId: string): Promise<AiRecommendation> {
+  try {
+    return await apiRequest<AiRecommendation>(`/ai/disruptions/${encodeURIComponent(disruptionId)}/recommendations`, { method: 'POST', timeoutMs: 30000 });
+  } catch {
+    return UNAVAILABLE;
+  }
+}

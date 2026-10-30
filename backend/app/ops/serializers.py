@@ -10,6 +10,7 @@ from ..models.inventory import CustomerOrder, OrderItem
 from ..models.recovery import Approval, ExecutionAction, ExecutionRun, RecoveryPlan, RecoveryPlanAction
 from ..models.supply_chain import Carrier, Product, Shipment, Supplier
 from ..risk import service as risk_service, training
+from ..recommendations.engine import recovery_tier
 from . import engine
 from .engine import aware
 
@@ -62,7 +63,7 @@ def order_view(db: Session, e: Dict[str, Any], disruption: Disruption) -> Dict[s
     score = int(round(risk.score)) if risk else 0
     return {
         "id": order.code, "customer": order.customer_reference, "product": product.name, "sku": product.sku, "units": float(line.required_quantity),
-        "deliveryCommitment": _date(order.required_delivery_date), "riskScore": score, "severity": SEVERITY[risk.category] if risk else "Low",
+        "deliveryCommitment": _date(order.required_delivery_date), "riskScore": score, "severity": SEVERITY[risk.category] if risk else "Low", "recoveryTier": recovery_tier(risk.score) if risk else None,
         "associatedDisruptionId": disruption.code, "destination": order.delivery_destination or "", "status": "Mitigated" if disruption.status == "RESOLVED" and score < 25 else "At Risk",
         "revenue": float(line.required_quantity) * 240,
         "riskSource": {

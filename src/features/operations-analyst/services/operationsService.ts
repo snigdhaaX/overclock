@@ -163,12 +163,12 @@ class OperationsService {
   getRecoveryPlans(filter?: 'all' | 'ai' | 'alternative' | 'custom'): RecoveryPlan[] {
     if (!filter || filter === 'all') return [...this.recoveryPlans];
     if (filter === 'ai') {
-      return this.recoveryPlans.filter((p) => p.recommendationLabel.toLowerCase().includes('optimal') || p.recommendationLabel.toLowerCase().includes('ai'));
+      return this.recoveryPlans.filter((p) => /optimal|best|ai/.test(p.recommendationLabel.toLowerCase()));
     }
     if (filter === 'alternative') {
       return this.recoveryPlans.filter((p) => p.recommendationLabel.toLowerCase().includes('alternative'));
     }
-    return this.recoveryPlans.filter((p) => !p.recommendationLabel.toLowerCase().includes('optimal'));
+    return this.recoveryPlans.filter((p) => !/optimal|best/.test(p.recommendationLabel.toLowerCase()));
   }
 
   getRecoveryPlanById(id: string): RecoveryPlan | undefined {

@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { FilePlus2, Gauge, Info, Sparkles } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -15,7 +15,8 @@ import OperationsHeader from '../../../../features/operations-analyst/components
 import RecoveryPlanCard from '../../../../features/operations-analyst/components/RecoveryPlanCard';
 import operationsService from '../../../../features/operations-analyst/services/operationsService';
 import { RecoveryPlan } from '../../../../features/operations-analyst/types';
-import { useSyncVersion } from '@/services/backendSync';
+import { AiPlanNote, AiStatusBanner } from '../../../../features/operations-analyst/components/AiRecoveryExplanation';
+import { AiRecommendation, getAiRecommendation, isBackendOnline, useSyncVersion } from '@/services/backendSync';
 
 export default function RecoveryRecommendationsScreen() {
   const router = useRouter();
@@ -24,6 +25,25 @@ export default function RecoveryRecommendationsScreen() {
   const [selectedPlanId, setSelectedPlanId] = useState<string>(() => operationsService.getRecoveryPlans()[0]?.id ?? 'RP-001');
 
   const plans = operationsService.getRecoveryPlans(activeTab);
+
+  // AI advice follows the first active disruption that still has options to choose from.
+  const disruptionId = operationsService.getRecoveryPlans().find((p) => p.status === 'Simulation Complete')?.relatedDisruptionId;
+  const [ai, setAi] = useState<AiRecommendation | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const loadAi = useCallback(() => {
+    if (!disruptionId || !isBackendOnline()) {
+      setAi(null);
+      return;
+    }
+    setAiLoading(true);
+    getAiRecommendation(disruptionId).then((result) => {
+      setAi(result);
+      setAiLoading(false);
+    });
+  }, [disruptionId]);
+
+  useEffect(loadAi, [loadAi]);
 
   const handleSimulate = (plan: RecoveryPlan) => {
     setSelectedPlanId(plan.id);
@@ -37,7 +57,7 @@ export default function RecoveryRecommendationsScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <OperationsHeader
         title="Recovery Strategies"
-        subtitle="AI generated mitigation & rerouting alternatives"
+        subtitle="Checked options to protect affected orders"
         rightAction={
           <Pressable
             onPress={() => router.push('/(protected)/operations-analyst/recovery/create')}
@@ -65,7 +85,7 @@ export default function RecoveryRecommendationsScreen() {
           style={[styles.tabBtn, activeTab === 'ai' && styles.tabBtnActive]}
         >
           <Text style={[styles.tabText, activeTab === 'ai' && styles.tabTextActive]}>
-            AI Optimal
+            Best Available
           </Text>
         </Pressable>
 
@@ -88,19 +108,26 @@ export default function RecoveryRecommendationsScreen() {
       </View>
 
       <FlatList
+        ListHeaderComponent={<AiStatusBanner loading={aiLoading} result={ai} onRetry={loadAi} />}
         data={plans}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <RecoveryPlanCard
-            plan={item}
-            isSelected={selectedPlanId === item.id}
-            onSelect={() => setSelectedPlanId(item.id)}
-            onSimulate={() => handleSimulate(item)}
-            onViewDetails={() => handleSimulate(item)}
-          />
-        )}
+        renderItem={({ item }) => {
+          const note = ai?.status === 'AVAILABLE' ? ai.explanations.find((e) => e.plan_id === item.id) : undefined;
+          return (
+            <View>
+              <RecoveryPlanCard
+                plan={item}
+                isSelected={selectedPlanId === item.id}
+                onSelect={() => setSelectedPlanId(item.id)}
+                onSimulate={() => handleSimulate(item)}
+                onViewDetails={() => handleSimulate(item)}
+              />
+              {note ? <AiPlanNote explanation={note} recommended={ai?.status === 'AVAILABLE' && ai.recommended_plan_id === item.id} /> : null}
+            </View>
+          );
+        }}
       />
 
       <OperationsBottomNav activeTab="recovery" />

@@ -7,7 +7,7 @@ from ..auth import hash_password
 from ..models.base import utcnow
 from ..models.identity import Organization, Role, User, UserRole
 from ..models.inventory import CustomerOrder, FulfilmentAllocation, Inventory, OrderItem
-from ..models.supply_chain import Carrier, Product, PurchaseOrder, PurchaseOrderItem, Shipment, ShipmentItem, Supplier, SupplierProduct, Warehouse
+from ..models.supply_chain import Carrier, Product, PurchaseOrder, PurchaseOrderItem, RouteAlternative, Shipment, ShipmentItem, Supplier, SupplierProduct, Warehouse, WarehouseLane
 from ..risk import service as risk_service, synthetic, training
 from ..risk.models import RiskExposure
 
@@ -113,7 +113,7 @@ def seed(db: Session, train_model: bool = True) -> Dict[str, str]:
     stock("WH-BLR", sen, 40)
     db.flush()
 
-    def shipment(code: str, po_code: str, supplier: str, carrier: str, destination: str, product: Product, units: float, eta_days: float, origin: str):
+    def shipment(code: str, po_code: str, supplier: str, carrier: str, destination: str, product: Product, units: float, eta_days: float, origin: str, route: float, weather: float, customs: float, freight: float):
         po = PurchaseOrder(id=uuid.uuid4(), organization_id=oid, code=po_code, supplier_id=suppliers[supplier].id, order_date=now.date(), status="CONFIRMED")
         db.add(po)
         db.flush()
@@ -122,6 +122,7 @@ def seed(db: Session, train_model: bool = True) -> Dict[str, str]:
         record = Shipment(
             id=uuid.uuid4(), organization_id=oid, code=code, purchase_order_id=po.id, supplier_id=suppliers[supplier].id, carrier_id=carriers[carrier].id,
             destination_warehouse_id=warehouses[destination].id, origin=origin, status="IN_TRANSIT", expected_arrival_at=eta, current_eta=eta, dispatched_at=now,
+            route_risk=route, weather_severity=weather, customs_hours=customs, freight_cost=freight,
         )
         db.add(record)
         db.flush()
@@ -130,8 +131,19 @@ def seed(db: Session, train_model: bool = True) -> Dict[str, str]:
         db.flush()
         return item
 
-    main_inbound = shipment("SHP-101", "PO-9001", "SUP-003", "CAR-01", "WH-MUM", mic, 1000, 1.5, "Singapore")
-    sensor_inbound = shipment("SHP-125", "PO-9002", "SUP-011", "CAR-03", "WH-BLR", sen, 100, 1.0, "Frankfurt")
+    main_inbound = shipment("SHP-101", "PO-9001", "SUP-003", "CAR-01", "WH-MUM", mic, 1000, 1.5, "Singapore", 0.8, 0.7, 30.0, 12000.0)
+    sensor_inbound = shipment("SHP-125", "PO-9002", "SUP-011", "CAR-03", "WH-BLR", sen, 100, 1.0, "Frankfurt", 0.2, 0.3, 8.0, 1500.0)
+
+    wh = {code: w.id for code, w in warehouses.items()}
+    db.add_all([
+        WarehouseLane(organization_id=oid, from_warehouse_id=wh["WH-BLR"], to_warehouse_id=wh["WH-MUM"], transit_hours=24, unit_cost=2),
+        WarehouseLane(organization_id=oid, from_warehouse_id=wh["WH-DEL"], to_warehouse_id=wh["WH-MUM"], transit_hours=36, unit_cost=3),
+        WarehouseLane(organization_id=oid, from_warehouse_id=wh["WH-MUM"], to_warehouse_id=wh["WH-BLR"], transit_hours=24, unit_cost=2),
+        WarehouseLane(organization_id=oid, from_warehouse_id=wh["WH-DEL"], to_warehouse_id=wh["WH-BLR"], transit_hours=48, unit_cost=3),
+        RouteAlternative(organization_id=oid, name="Northern corridor", origin="Singapore", destination_warehouse_id=wh["WH-MUM"], carrier_id=carriers["CAR-02"].id, added_transit_hours=12, cost_multiplier=0.1, risk_multiplier=0.7),
+        RouteAlternative(organization_id=oid, name="Southern corridor", origin="Singapore", destination_warehouse_id=wh["WH-MUM"], carrier_id=carriers["CAR-03"].id, added_transit_hours=30, cost_multiplier=0.25, risk_multiplier=0.5),
+    ])
+    db.flush()
 
     for code, customer, units, days, tier, source in ORDERS:
         order = CustomerOrder(

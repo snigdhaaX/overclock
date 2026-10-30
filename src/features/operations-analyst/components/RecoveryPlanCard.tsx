@@ -26,7 +26,7 @@ export const RecoveryPlanCard: React.FC<RecoveryPlanCardProps> = ({
   onSimulate,
   onViewDetails,
 }) => {
-  const isOptimal = plan.recommendationLabel.toLowerCase().includes('optimal');
+  const isOptimal = /optimal|best/.test(plan.recommendationLabel.toLowerCase());
 
   return (
     <Pressable

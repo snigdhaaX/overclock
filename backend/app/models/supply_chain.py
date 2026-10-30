@@ -141,6 +141,10 @@ class Shipment(IdMixin, OrgMixin, TimestampMixin, VersionedMixin, Base):
     origin = Column(String(200))
     status = Column(String(24), nullable=False, default="CREATED", index=True)
     tracking_reference = Column(String(120))
+    route_risk = Column(Float)
+    weather_severity = Column(Float)
+    customs_hours = Column(Float)
+    freight_cost = Column(Money)
     dispatched_at = Column(TZDateTime)
     expected_arrival_at = Column(TZDateTime)
     current_eta = Column(TZDateTime)
@@ -169,6 +173,40 @@ class ShipmentItem(IdMixin, OrgMixin, Base):
         UniqueConstraint("shipment_id", "product_id", name="uq_shipment_items_line"),
         CheckConstraint("quantity > 0", name="quantity_positive"),
         non_negative("received_quantity"),
+    )
+
+
+class RouteAlternative(IdMixin, OrgMixin, TimestampMixin, Base):
+    """A known way to move goods, compared with the original plan. Replaces the notebook's generated routes."""
+    __tablename__ = "route_alternatives"
+
+    name = Column(String(120), nullable=False)
+    origin = Column(String(200), nullable=False)
+    destination_warehouse_id = Column(Uuid, ForeignKey("warehouses.id", ondelete="CASCADE"), nullable=False, index=True)
+    carrier_id = Column(Uuid, ForeignKey("carriers.id", ondelete="RESTRICT"), nullable=False, index=True)
+    added_transit_hours = Column(Float, nullable=False)
+    cost_multiplier = Column(Float, nullable=False)
+    risk_multiplier = Column(Float, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("organization_id", "name", "origin", "destination_warehouse_id", name="uq_route_alternatives_route"),
+        non_negative("added_transit_hours", "cost_multiplier", "risk_multiplier"),
+    )
+
+
+class WarehouseLane(IdMixin, OrgMixin, TimestampMixin, Base):
+    """Time and cost between two warehouses. Replaces the notebook's generated distances."""
+    __tablename__ = "warehouse_lanes"
+
+    from_warehouse_id = Column(Uuid, ForeignKey("warehouses.id", ondelete="CASCADE"), nullable=False, index=True)
+    to_warehouse_id = Column(Uuid, ForeignKey("warehouses.id", ondelete="CASCADE"), nullable=False, index=True)
+    transit_hours = Column(Float, nullable=False)
+    unit_cost = Column(Money, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("from_warehouse_id", "to_warehouse_id", name="uq_warehouse_lanes_pair"),
+        CheckConstraint("from_warehouse_id <> to_warehouse_id", name="different_warehouses"),
+        non_negative("transit_hours", "unit_cost"),
     )
 
 

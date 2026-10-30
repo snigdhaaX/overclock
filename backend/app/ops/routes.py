@@ -93,6 +93,13 @@ def request_revision(plan_id: str, body: Decision, principal: Principal = Depend
     return _decide(plan_id, "REVISION_REQUIRED", body, principal, db)
 
 
+@router.post("/ai/disruptions/{disruption_id}/recommendations")
+def ai_recommendations(disruption_id: str, principal: Principal = Depends(get_principal), db: Session = Depends(get_db)):
+    """Advisory only. status is UNAVAILABLE on any AI failure, and the rest of the workflow is unaffected."""
+    principal.require(*AUTHORS)
+    return run(lambda: engine.explain_recovery(db, principal.organization, disruption_id))
+
+
 @router.post("/execution/{plan_id}/confirm")
 def confirm_execution(plan_id: str, principal: Principal = Depends(get_principal), db: Session = Depends(get_db)):
     principal.require(*MANAGERS)
