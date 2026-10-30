@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TRUSTCHAIN | Supply Chain Control Tower</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-lockup">
+      <div class="brand-mark">T</div>
+      <div><div class="brand">TRUSTCHAIN</div><div class="tagline">SUPPLY CHAIN CONTROL TOWER</div></div>
+    </div>
+    <div class="top-actions">
+      <span class="env-pill"><i></i> DEMO ENVIRONMENT</span>
+      <label class="role-picker">Acting role
+        <select id="roleSelect">
+          <option value="operations_analyst">Operations Analyst</option>
+          <option value="supply_chain_manager">Supply Chain Manager</option>
+          <option value="warehouse_operator">Warehouse Operator</option>
+          <option value="procurement_approver">Procurement Approver</option>
+          <option value="administrator">Administrator</option>
+          <option value="auditor">Auditor</option>
+        </select>
+      </label>
+      <button class="button button-quiet" id="refreshBtn">↻ Refresh</button>
+    </div>
+  </header>
+
+  <main class="page-wrap">
+    <section class="hero-row">
+      <div>
+        <div class="eyebrow">OPERATIONS OVERVIEW / LIVE DEMO DATA</div>
+        <h1>Disruption command centre</h1>
+        <p class="subhead">Understand downstream consequences. Prioritise risk. Govern the recovery.</p>
+      </div>
+      <div class="hero-actions">
+        <button class="button button-primary" id="simulateBtn">＋ Simulate carrier delay</button>
+      </div>
+    </section>
+
+    <section class="metric-grid" id="metrics">
+      <article class="metric-card"><div class="metric-label">Active disruptions</div><div class="metric-value" id="mDisruptions">—</div><div class="metric-foot">Delayed inbound shipments</div></article>
+      <article class="metric-card"><div class="metric-label">Affected orders</div><div class="metric-value" id="mAffected">—</div><div class="metric-foot">Downstream order exposure</div></article>
+      <article class="metric-card"><div class="metric-label">Critical exposure</div><div class="metric-value" id="mCritical">—</div><div class="metric-foot">Risk-ranked orders</div></article>
+      <article class="metric-card"><div class="metric-label">Open orders</div><div class="metric-value" id="mOrders">—</div><div class="metric-foot">Customer commitments tracked</div></article>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel panel-wide">
+        <div class="panel-heading">
+          <div><div class="eyebrow">PRIORITY QUEUE</div><h2>Downstream order risk</h2></div>
+          <span class="live-label"><i></i> Deterministic scoring</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Customer / order</th><th>Priority</th><th>Exposed units</th><th>Risk score</th><th>Band</th><th></th></tr></thead>
+            <tbody id="riskRows"><tr><td colspan="6" class="empty">Loading risk queue…</td></tr></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading"><div><div class="eyebrow">EVENT STREAM</div><h2>Recent events</h2></div></div>
+        <div id="eventList" class="event-list"><div class="empty">Loading events…</div></div>
+      </article>
+    </section>
+
+    <section class="content-grid lower-grid">
+      <article class="panel panel-wide">
+        <div class="panel-heading">
+          <div><div class="eyebrow">INVESTIGATION</div><h2>Shipment impact analysis</h2></div>
+          <div class="inline-controls"><select id="shipmentSelect" aria-label="Select shipment"></select><button class="button button-secondary" id="analyzeBtn">Run analysis</button></div>
+        </div>
+        <div id="analysisResult" class="analysis-placeholder">Select a shipment and run the impact engine to trace exposed customer order lines.</div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading"><div><div class="eyebrow">NETWORK SNAPSHOT</div><h2>Usable inventory</h2></div></div>
+        <div class="table-wrap compact-wrap">
+          <table><thead><tr><th>SKU</th><th>Warehouse</th><th>Free</th></tr></thead><tbody id="inventoryRows"><tr><td colspan="3" class="empty">Loading inventory…</td></tr></tbody></table>
+        </div>
+        <div class="note">Usable stock = on-hand units less reserved units. Reserved stock is not treated as available for recovery.</div>
+      </article>
+    </section>
+
+    <section class="panel plans-panel">
+      <div class="panel-heading">
+        <div><div class="eyebrow">HUMAN-IN-THE-LOOP GOVERNANCE</div><h2>Recovery plan workflow</h2></div>
+        <span class="rule-chip">Creator ≠ approver</span>
+      </div>
+      <div class="plan-compose">
+        <label>Impacted order<select id="planOrderSelect"></select></label>
+        <label>Recovery option<select id="planActionSelect">
+          <option value="stock_reallocation">Stock reallocation</option>
+          <option value="freight_expedite">Freight expedite</option>
+          <option value="alternative_supplier">Alternative supplier</option>
+          <option value="order_split">Order split</option>
+        </select></label>
+        <label class="description-field">Plan description<input id="planDescription" value="Reallocate only uncommitted inventory; confirm availability before execution." /></label>
+        <button class="button button-primary" id="createPlanBtn">Create draft</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Plan</th><th>Order</th><th>Action</th><th>Created by</th><th>Status</th><th>Version</th><th>Workflow</th></tr></thead>
+          <tbody id="planRows"><tr><td colspan="7" class="empty">Loading recovery plans…</td></tr></tbody></table>
+      </div>
+      <div class="note">Demo roles are selected in the header. Analysts create and submit; managers approve operational plans; procurement approvers approve alternative-supplier plans; warehouse operators execute approved plans.</div>
+    </section>
+
+    <footer><span>TRUSTCHAIN · OVERCLOCK'26</span><span>DETECT → TRACE → PRIORITISE → RECOVER → VERIFY</span></footer>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

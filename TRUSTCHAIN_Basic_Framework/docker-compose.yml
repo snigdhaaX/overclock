@@ -1,0 +1,15 @@
+services:
+  trustchain:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      WEBHOOK_TOKEN: dev-webhook-token
+      DATABASE_URL: sqlite:////app/data/trustchain.db
+    volumes:
+      - trustchain_data:/app/data
+
+volumes:
+  trustchain_data:
