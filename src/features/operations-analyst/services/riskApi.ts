@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { getAccessToken } from '../../../services/apiClient';
 import type { RiskRequest, RiskResponse } from './riskInputs';
 
 const REQUEST_TIMEOUT_MS = 8000;
@@ -20,8 +21,7 @@ export async function scoreOrders(orders: RiskRequest[]): Promise<RiskResponse[]
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Placeholder identity until real login exists; the backend must not trust this in production.
-        'X-Organization-Id': process.env.EXPO_PUBLIC_RISK_ORG_ID || 'org:synthetic-demo',
+        ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
       },
       body: JSON.stringify({ orders }),
       signal: controller.signal,

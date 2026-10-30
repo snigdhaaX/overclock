@@ -460,7 +460,7 @@ export default function ApprovalDecisionScreen() {
               <View style={styles.formCard}>
                 <Text style={styles.formCardTitle}>Executive Authorization Notes</Text>
                 <Text style={styles.formCardSubtitle}>
-                  Provide authorizing remarks to be recorded in the cryptographically verified ledger.
+                  Provide authorizing remarks to be recorded in the audit trail.
                 </Text>
 
                 <TextInput
@@ -476,13 +476,13 @@ export default function ApprovalDecisionScreen() {
                 <View style={styles.consequencesCard}>
                   <Text style={styles.consequencesTitle}>Operational Consequences of Approval:</Text>
                   <Text style={styles.consequenceItem}>
-                    1. Emits on-chain PlanApproved event with Stage 1 sign-off.
+                    1. Records your approval against this exact plan version in the audit trail.
                   </Text>
                   <Text style={styles.consequenceItem}>
-                    2. Enlists BlueDart Priority Courier for road transit corridor (Lead time: 14 hours).
+                    2. Anchors the decision on-chain when chain signing is configured.
                   </Text>
                   <Text style={styles.consequenceItem}>
-                    3. Commits immutable transaction on blockchain ledger under authorized manager wallet.
+                    3. Nothing runs until you confirm execution on the next step.
                   </Text>
                 </View>
               </View>
@@ -556,10 +556,10 @@ export default function ApprovalDecisionScreen() {
                   <Lock size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
                   <Text style={styles.executeBtnText}>
                     {decisionMode === 'approve'
-                      ? 'Submit On-Chain Approval'
+                      ? isBackendOnline() ? 'Approve Plan' : 'Submit On-Chain Approval'
                       : decisionMode === 'reject'
-                      ? 'Submit On-Chain Rejection'
-                      : 'Submit On-Chain Revision Request'}
+                      ? isBackendOnline() ? 'Reject Plan' : 'Submit On-Chain Rejection'
+                      : isBackendOnline() ? 'Return for Revision' : 'Submit On-Chain Revision Request'}
                   </Text>
                 </>
               )}
