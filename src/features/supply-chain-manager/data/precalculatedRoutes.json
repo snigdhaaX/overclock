@@ -1,0 +1,1476 @@
+[
+  {
+    "orderId": "ORD-445",
+    "shipmentId": "SHP-101",
+    "customer": "EduTech Pvt Ltd",
+    "product": "PRD-012 Industrial Microcontrollers",
+    "quantity": 280,
+    "origin": "Chennai Supplier Hub",
+    "originCoordinate": {
+      "latitude": 13.0827,
+      "longitude": 80.2707
+    },
+    "destination": "Pune Tech Park Facility",
+    "destinationCoordinate": {
+      "latitude": 18.5204,
+      "longitude": 73.8567
+    },
+    "carrier": "OceanTrans / BlueDart Logistics",
+    "stops": [
+      {
+        "id": "stp-1-1",
+        "name": "Global Silicon Fab",
+        "type": "supplier",
+        "location": "Chennai High-Tech SEZ",
+        "coordinate": {
+          "latitude": 13.0827,
+          "longitude": 80.2707
+        },
+        "plannedArrival": "23 Oct 2026, 06:00",
+        "actualArrival": "23 Oct 2026, 06:45",
+        "status": "completed",
+        "notes": "Dispatched 280 units"
+      },
+      {
+        "id": "stp-1-2",
+        "name": "Bangalore Distribution Bay",
+        "type": "distribution",
+        "location": "Electronic City, BLR",
+        "coordinate": {
+          "latitude": 12.9716,
+          "longitude": 77.5946
+        },
+        "plannedArrival": "24 Oct 2026, 12:00",
+        "actualArrival": "24 Oct 2026, 13:15",
+        "status": "completed",
+        "notes": "Cross-dock inspection passed"
+      },
+      {
+        "id": "stp-1-3",
+        "name": "Hyderabad Central Logistics",
+        "type": "warehouse",
+        "location": "Gachibowli Hub, HYD",
+        "coordinate": {
+          "latitude": 17.385,
+          "longitude": 78.4867
+        },
+        "plannedArrival": "25 Oct 2026, 18:00",
+        "status": "current",
+        "notes": "In-transit hold due to Singapore vessel transshipment"
+      },
+      {
+        "id": "stp-1-4",
+        "name": "EduTech Delivery Terminal",
+        "type": "customer",
+        "location": "Hinjawadi Phase 2, Pune",
+        "coordinate": {
+          "latitude": 18.5204,
+          "longitude": 73.8567
+        },
+        "plannedArrival": "28 Oct 2026, 10:00",
+        "status": "pending",
+        "notes": "Final delivery SLA commitment"
+      }
+    ],
+    "coordinates": [
+      {
+        "latitude": 13.0827,
+        "longitude": 80.27068
+      },
+      {
+        "latitude": 13.07508,
+        "longitude": 80.19548
+      },
+      {
+        "latitude": 13.05676,
+        "longitude": 80.11474
+      },
+      {
+        "latitude": 13.01829,
+        "longitude": 80.0107
+      },
+      {
+        "latitude": 12.93331,
+        "longitude": 79.90793
+      },
+      {
+        "latitude": 12.87134,
+        "longitude": 79.72429
+      },
+      {
+        "latitude": 12.898,
+        "longitude": 79.5614
+      },
+      {
+        "latitude": 12.92693,
+        "longitude": 79.34849
+      },
+      {
+        "latitude": 12.99442,
+        "longitude": 79.24322
+      },
+      {
+        "latitude": 12.97813,
+        "longitude": 79.14008
+      },
+      {
+        "latitude": 12.95608,
+        "longitude": 79.00061
+      },
+      {
+        "latitude": 12.94953,
+        "longitude": 78.82538
+      },
+      {
+        "latitude": 12.9353,
+        "longitude": 78.68168
+      },
+      {
+        "latitude": 12.94301,
+        "longitude": 78.61372
+      },
+      {
+        "latitude": 12.99379,
+        "longitude": 78.49737
+      },
+      {
+        "latitude": 12.99928,
+        "longitude": 78.32196
+      },
+      {
+        "latitude": 13.0442,
+        "longitude": 77.91267
+      },
+      {
+        "latitude": 13.06967,
+        "longitude": 77.78265
+      },
+      {
+        "latitude": 12.98288,
+        "longitude": 77.63747
+      },
+      {
+        "latitude": 12.97407,
+        "longitude": 77.59578
+      },
+      {
+        "latitude": 13.04815,
+        "longitude": 77.59213
+      },
+      {
+        "latitude": 13.14766,
+        "longitude": 77.56969
+      },
+      {
+        "latitude": 13.3079,
+        "longitude": 77.54479
+      },
+      {
+        "latitude": 13.45004,
+        "longitude": 77.51547
+      },
+      {
+        "latitude": 13.64552,
+        "longitude": 77.51551
+      },
+      {
+        "latitude": 13.81215,
+        "longitude": 77.48839
+      },
+      {
+        "latitude": 13.92729,
+        "longitude": 77.54527
+      },
+      {
+        "latitude": 14.15057,
+        "longitude": 77.6068
+      },
+      {
+        "latitude": 14.33619,
+        "longitude": 77.63711
+      },
+      {
+        "latitude": 14.52473,
+        "longitude": 77.63287
+      },
+      {
+        "latitude": 14.72193,
+        "longitude": 77.60381
+      },
+      {
+        "latitude": 14.89712,
+        "longitude": 77.58554
+      },
+      {
+        "latitude": 15.09416,
+        "longitude": 77.65994
+      },
+      {
+        "latitude": 15.23534,
+        "longitude": 77.72956
+      },
+      {
+        "latitude": 15.37587,
+        "longitude": 77.83487
+      },
+      {
+        "latitude": 15.56076,
+        "longitude": 77.92866
+      },
+      {
+        "latitude": 15.7682,
+        "longitude": 78.02483
+      },
+      {
+        "latitude": 15.9863,
+        "longitude": 77.97305
+      },
+      {
+        "latitude": 16.21916,
+        "longitude": 77.97586
+      },
+      {
+        "latitude": 16.45638,
+        "longitude": 77.93683
+      },
+      {
+        "latitude": 16.65716,
+        "longitude": 78.00965
+      },
+      {
+        "latitude": 16.83352,
+        "longitude": 78.15491
+      },
+      {
+        "latitude": 17.03346,
+        "longitude": 78.20137
+      },
+      {
+        "latitude": 17.19591,
+        "longitude": 78.31976
+      },
+      {
+        "latitude": 17.29025,
+        "longitude": 78.41665
+      },
+      {
+        "latitude": 17.37046,
+        "longitude": 78.47627
+      },
+      {
+        "latitude": 17.39157,
+        "longitude": 78.46201
+      },
+      {
+        "latitude": 17.42344,
+        "longitude": 78.38086
+      },
+      {
+        "latitude": 17.41653,
+        "longitude": 78.28168
+      },
+      {
+        "latitude": 17.55057,
+        "longitude": 78.20709
+      },
+      {
+        "latitude": 17.60425,
+        "longitude": 78.03593
+      },
+      {
+        "latitude": 17.64199,
+        "longitude": 77.85088
+      },
+      {
+        "latitude": 17.69178,
+        "longitude": 77.64321
+      },
+      {
+        "latitude": 17.71125,
+        "longitude": 77.40002
+      },
+      {
+        "latitude": 17.76397,
+        "longitude": 77.20944
+      },
+      {
+        "latitude": 17.78974,
+        "longitude": 77.05031
+      },
+      {
+        "latitude": 17.82878,
+        "longitude": 76.79536
+      },
+      {
+        "latitude": 17.85098,
+        "longitude": 76.61735
+      },
+      {
+        "latitude": 17.82892,
+        "longitude": 76.35369
+      },
+      {
+        "latitude": 17.75921,
+        "longitude": 76.08811
+      },
+      {
+        "latitude": 17.6897,
+        "longitude": 75.88733
+      },
+      {
+        "latitude": 17.85151,
+        "longitude": 75.52023
+      },
+      {
+        "latitude": 17.97354,
+        "longitude": 75.3117
+      },
+      {
+        "latitude": 18.05885,
+        "longitude": 75.11347
+      },
+      {
+        "latitude": 18.18128,
+        "longitude": 74.94313
+      },
+      {
+        "latitude": 18.34526,
+        "longitude": 74.66887
+      },
+      {
+        "latitude": 18.43053,
+        "longitude": 74.46048
+      },
+      {
+        "latitude": 18.47728,
+        "longitude": 74.26377
+      },
+      {
+        "latitude": 18.4887,
+        "longitude": 74.04838
+      },
+      {
+        "latitude": 18.50623,
+        "longitude": 73.91169
+      },
+      {
+        "latitude": 18.52101,
+        "longitude": 73.85528
+      },
+      {
+        "latitude": 18.52037,
+        "longitude": 73.85648
+      }
+    ],
+    "distanceKm": 1453,
+    "estimatedDuration": "18.5 hrs",
+    "status": "In Transit",
+    "riskLevel": "High",
+    "expectedDelivery": "28 Oct 2026",
+    "delay": "+120 hours",
+    "associatedDisruptionId": "SHP-101",
+    "routeColor": "#2563EB"
+  },
+  {
+    "orderId": "ORD-446",
+    "shipmentId": "SHP-102",
+    "customer": "CampusMart Retail",
+    "product": "PRD-012 Industrial Microcontrollers",
+    "quantity": 190,
+    "origin": "Ahmedabad Fab Terminal",
+    "originCoordinate": {
+      "latitude": 23.0225,
+      "longitude": 72.5714
+    },
+    "destination": "Delhi NCR Fulfillment Center",
+    "destinationCoordinate": {
+      "latitude": 28.6139,
+      "longitude": 77.209
+    },
+    "carrier": "SpeedLogistics Freight",
+    "stops": [
+      {
+        "id": "stp-2-1",
+        "name": "Precision Components Fab",
+        "type": "supplier",
+        "location": "Sanand Industrial Area, Ahmedabad",
+        "coordinate": {
+          "latitude": 23.0225,
+          "longitude": 72.5714
+        },
+        "plannedArrival": "22 Oct 2026, 08:00",
+        "actualArrival": "22 Oct 2026, 08:30",
+        "status": "completed"
+      },
+      {
+        "id": "stp-2-2",
+        "name": "Mumbai Marine Gateway Hub",
+        "type": "distribution",
+        "location": "Nhava Sheva, Mumbai",
+        "coordinate": {
+          "latitude": 19.076,
+          "longitude": 72.8777
+        },
+        "plannedArrival": "24 Oct 2026, 14:00",
+        "actualArrival": "24 Oct 2026, 18:20",
+        "status": "completed"
+      },
+      {
+        "id": "stp-2-3",
+        "name": "Indore Transshipment Facility",
+        "type": "warehouse",
+        "location": "Pithampur Cluster, Indore",
+        "coordinate": {
+          "latitude": 22.7196,
+          "longitude": 75.8577
+        },
+        "plannedArrival": "26 Oct 2026, 10:00",
+        "status": "current",
+        "notes": "Vessel delay impact reported"
+      },
+      {
+        "id": "stp-2-4",
+        "name": "CampusMart Delhi Hub",
+        "type": "customer",
+        "location": "Okhla Phase 3, New Delhi",
+        "coordinate": {
+          "latitude": 28.6139,
+          "longitude": 77.209
+        },
+        "plannedArrival": "30 Oct 2026, 16:00",
+        "status": "pending"
+      }
+    ],
+    "coordinates": [
+      {
+        "latitude": 23.0225,
+        "longitude": 72.57144
+      },
+      {
+        "latitude": 22.96229,
+        "longitude": 72.59154
+      },
+      {
+        "latitude": 22.74171,
+        "longitude": 72.66604
+      },
+      {
+        "latitude": 22.66032,
+        "longitude": 72.86704
+      },
+      {
+        "latitude": 22.5116,
+        "longitude": 73.02511
+      },
+      {
+        "latitude": 22.31242,
+        "longitude": 73.09727
+      },
+      {
+        "latitude": 21.73457,
+        "longitude": 72.93566
+      },
+      {
+        "latitude": 21.20939,
+        "longitude": 73.04498
+      },
+      {
+        "latitude": 20.8517,
+        "longitude": 73.06315
+      },
+      {
+        "latitude": 20.68487,
+        "longitude": 72.96432
+      },
+      {
+        "latitude": 20.50112,
+        "longitude": 72.94395
+      },
+      {
+        "latitude": 20.25603,
+        "longitude": 72.88405
+      },
+      {
+        "latitude": 20.01974,
+        "longitude": 72.92499
+      },
+      {
+        "latitude": 19.79839,
+        "longitude": 72.91555
+      },
+      {
+        "latitude": 19.63069,
+        "longitude": 72.91514
+      },
+      {
+        "latitude": 19.48868,
+        "longitude": 72.90464
+      },
+      {
+        "latitude": 19.37923,
+        "longitude": 72.89563
+      },
+      {
+        "latitude": 19.2853,
+        "longitude": 72.89226
+      },
+      {
+        "latitude": 19.18719,
+        "longitude": 72.85847
+      },
+      {
+        "latitude": 19.07434,
+        "longitude": 72.84906
+      },
+      {
+        "latitude": 19.1365,
+        "longitude": 72.94553
+      },
+      {
+        "latitude": 19.27859,
+        "longitude": 73.09802
+      },
+      {
+        "latitude": 19.36574,
+        "longitude": 73.17679
+      },
+      {
+        "latitude": 19.42515,
+        "longitude": 73.28771
+      },
+      {
+        "latitude": 19.50704,
+        "longitude": 73.32832
+      },
+      {
+        "latitude": 19.59349,
+        "longitude": 73.39212
+      },
+      {
+        "latitude": 19.63574,
+        "longitude": 73.48019
+      },
+      {
+        "latitude": 19.68858,
+        "longitude": 73.49761
+      },
+      {
+        "latitude": 19.69889,
+        "longitude": 73.51278
+      },
+      {
+        "latitude": 19.73491,
+        "longitude": 73.63493
+      },
+      {
+        "latitude": 19.85109,
+        "longitude": 73.6798
+      },
+      {
+        "latitude": 19.99767,
+        "longitude": 73.80242
+      },
+      {
+        "latitude": 20.14658,
+        "longitude": 73.97914
+      },
+      {
+        "latitude": 20.28137,
+        "longitude": 74.10203
+      },
+      {
+        "latitude": 20.34739,
+        "longitude": 74.25441
+      },
+      {
+        "latitude": 20.40862,
+        "longitude": 74.34489
+      },
+      {
+        "latitude": 20.5124,
+        "longitude": 74.47411
+      },
+      {
+        "latitude": 20.59387,
+        "longitude": 74.5986
+      },
+      {
+        "latitude": 20.69287,
+        "longitude": 74.68796
+      },
+      {
+        "latitude": 20.79654,
+        "longitude": 74.74453
+      },
+      {
+        "latitude": 20.92325,
+        "longitude": 74.79687
+      },
+      {
+        "latitude": 21.09426,
+        "longitude": 74.79284
+      },
+      {
+        "latitude": 21.29369,
+        "longitude": 74.86281
+      },
+      {
+        "latitude": 21.3985,
+        "longitude": 74.96445
+      },
+      {
+        "latitude": 21.5195,
+        "longitude": 75.03867
+      },
+      {
+        "latitude": 21.59796,
+        "longitude": 75.06361
+      },
+      {
+        "latitude": 21.71906,
+        "longitude": 75.12016
+      },
+      {
+        "latitude": 21.86625,
+        "longitude": 75.20298
+      },
+      {
+        "latitude": 22.03772,
+        "longitude": 75.3656
+      },
+      {
+        "latitude": 22.18125,
+        "longitude": 75.46015
+      },
+      {
+        "latitude": 22.34255,
+        "longitude": 75.50483
+      },
+      {
+        "latitude": 22.43947,
+        "longitude": 75.62464
+      },
+      {
+        "latitude": 22.59508,
+        "longitude": 75.66983
+      },
+      {
+        "latitude": 22.62904,
+        "longitude": 75.80674
+      },
+      {
+        "latitude": 22.70534,
+        "longitude": 75.84474
+      },
+      {
+        "latitude": 22.74557,
+        "longitude": 75.85108
+      },
+      {
+        "latitude": 22.89576,
+        "longitude": 75.85704
+      },
+      {
+        "latitude": 23.09291,
+        "longitude": 75.81667
+      },
+      {
+        "latitude": 23.38556,
+        "longitude": 75.78769
+      },
+      {
+        "latitude": 24.09264,
+        "longitude": 75.6989
+      },
+      {
+        "latitude": 24.57418,
+        "longitude": 75.83601
+      },
+      {
+        "latitude": 25.48642,
+        "longitude": 76.21205
+      },
+      {
+        "latitude": 26.21096,
+        "longitude": 76.23861
+      },
+      {
+        "latitude": 26.65903,
+        "longitude": 76.31308
+      },
+      {
+        "latitude": 27.01277,
+        "longitude": 76.59243
+      },
+      {
+        "latitude": 27.44576,
+        "longitude": 76.82357
+      },
+      {
+        "latitude": 27.81201,
+        "longitude": 77.02015
+      },
+      {
+        "latitude": 28.18829,
+        "longitude": 77.17204
+      },
+      {
+        "latitude": 28.36811,
+        "longitude": 77.31472
+      },
+      {
+        "latitude": 28.55939,
+        "longitude": 77.26794
+      },
+      {
+        "latitude": 28.60935,
+        "longitude": 77.20815
+      },
+      {
+        "latitude": 28.61393,
+        "longitude": 77.20877
+      }
+    ],
+    "distanceKm": 1820,
+    "estimatedDuration": "21.6 hrs",
+    "status": "Delayed",
+    "riskLevel": "Critical",
+    "expectedDelivery": "30 Oct 2026",
+    "delay": "+48 hours",
+    "associatedDisruptionId": "SHP-101",
+    "routeColor": "#DC2626"
+  },
+  {
+    "orderId": "ORD-447",
+    "shipmentId": "SHP-103",
+    "customer": "LearnHub Systems",
+    "product": "PRD-034 RAM Modules",
+    "quantity": 370,
+    "origin": "Kolkata Port Logistics Terminal",
+    "originCoordinate": {
+      "latitude": 22.5726,
+      "longitude": 88.3639
+    },
+    "destination": "Chennai Tech Corridor",
+    "destinationCoordinate": {
+      "latitude": 13.0827,
+      "longitude": 80.2707
+    },
+    "carrier": "East Coast FastCargo",
+    "stops": [
+      {
+        "id": "stp-3-1",
+        "name": "Eastern Electronics Assembly",
+        "type": "supplier",
+        "location": "Salt Lake Sector V, Kolkata",
+        "coordinate": {
+          "latitude": 22.5726,
+          "longitude": 88.3639
+        },
+        "plannedArrival": "24 Oct 2026, 09:00",
+        "actualArrival": "24 Oct 2026, 09:15",
+        "status": "completed"
+      },
+      {
+        "id": "stp-3-2",
+        "name": "Bhubaneswar Logistics Depot",
+        "type": "distribution",
+        "location": "Chandaka Industrial Area",
+        "coordinate": {
+          "latitude": 20.2961,
+          "longitude": 85.8245
+        },
+        "plannedArrival": "25 Oct 2026, 14:00",
+        "status": "completed"
+      },
+      {
+        "id": "stp-3-3",
+        "name": "Visakhapatnam Maritime Dock",
+        "type": "warehouse",
+        "location": "Harbor Gateway, Vizag",
+        "coordinate": {
+          "latitude": 17.6868,
+          "longitude": 83.2185
+        },
+        "plannedArrival": "26 Oct 2026, 19:00",
+        "status": "current"
+      },
+      {
+        "id": "stp-3-4",
+        "name": "LearnHub Systems Receiving",
+        "type": "customer",
+        "location": "OMR IT Expressway, Chennai",
+        "coordinate": {
+          "latitude": 13.0827,
+          "longitude": 80.2707
+        },
+        "plannedArrival": "29 Oct 2026, 11:00",
+        "status": "pending"
+      }
+    ],
+    "coordinates": [
+      {
+        "latitude": 22.57285,
+        "longitude": 88.36402
+      },
+      {
+        "latitude": 22.6044,
+        "longitude": 88.29528
+      },
+      {
+        "latitude": 22.47961,
+        "longitude": 88.10113
+      },
+      {
+        "latitude": 22.4393,
+        "longitude": 87.849
+      },
+      {
+        "latitude": 22.3923,
+        "longitude": 87.58812
+      },
+      {
+        "latitude": 22.38739,
+        "longitude": 87.37781
+      },
+      {
+        "latitude": 22.20906,
+        "longitude": 87.39048
+      },
+      {
+        "latitude": 22.06305,
+        "longitude": 87.34914
+      },
+      {
+        "latitude": 21.91029,
+        "longitude": 87.26778
+      },
+      {
+        "latitude": 21.73986,
+        "longitude": 87.14337
+      },
+      {
+        "latitude": 21.55076,
+        "longitude": 86.92605
+      },
+      {
+        "latitude": 21.29688,
+        "longitude": 86.69406
+      },
+      {
+        "latitude": 21.02989,
+        "longitude": 86.46573
+      },
+      {
+        "latitude": 20.81987,
+        "longitude": 86.2006
+      },
+      {
+        "latitude": 20.57604,
+        "longitude": 86.02712
+      },
+      {
+        "latitude": 20.40427,
+        "longitude": 85.88039
+      },
+      {
+        "latitude": 20.29529,
+        "longitude": 85.85304
+      },
+      {
+        "latitude": 20.22445,
+        "longitude": 85.72763
+      },
+      {
+        "latitude": 20.11048,
+        "longitude": 85.57584
+      },
+      {
+        "latitude": 19.94369,
+        "longitude": 85.39561
+      },
+      {
+        "latitude": 19.78958,
+        "longitude": 85.22551
+      },
+      {
+        "latitude": 19.58466,
+        "longitude": 85.10507
+      },
+      {
+        "latitude": 19.36034,
+        "longitude": 84.99759
+      },
+      {
+        "latitude": 19.20606,
+        "longitude": 84.74566
+      },
+      {
+        "latitude": 18.9935,
+        "longitude": 84.59298
+      },
+      {
+        "latitude": 18.80159,
+        "longitude": 84.4593
+      },
+      {
+        "latitude": 18.65157,
+        "longitude": 84.28595
+      },
+      {
+        "latitude": 18.47924,
+        "longitude": 84.11894
+      },
+      {
+        "latitude": 18.3227,
+        "longitude": 83.9119
+      },
+      {
+        "latitude": 18.22317,
+        "longitude": 83.70756
+      },
+      {
+        "latitude": 18.06759,
+        "longitude": 83.53077
+      },
+      {
+        "latitude": 17.9005,
+        "longitude": 83.39409
+      },
+      {
+        "latitude": 17.78869,
+        "longitude": 83.35302
+      },
+      {
+        "latitude": 17.72446,
+        "longitude": 83.30831
+      },
+      {
+        "latitude": 17.69517,
+        "longitude": 83.22118
+      },
+      {
+        "latitude": 17.68885,
+        "longitude": 83.11033
+      },
+      {
+        "latitude": 17.66817,
+        "longitude": 82.96269
+      },
+      {
+        "latitude": 17.5221,
+        "longitude": 82.81671
+      },
+      {
+        "latitude": 17.38505,
+        "longitude": 82.62149
+      },
+      {
+        "latitude": 17.30751,
+        "longitude": 82.44391
+      },
+      {
+        "latitude": 17.19245,
+        "longitude": 82.30738
+      },
+      {
+        "latitude": 17.03682,
+        "longitude": 82.23203
+      },
+      {
+        "latitude": 16.85475,
+        "longitude": 82.23098
+      },
+      {
+        "latitude": 16.73777,
+        "longitude": 82.2028
+      },
+      {
+        "latitude": 16.59205,
+        "longitude": 82.03454
+      },
+      {
+        "latitude": 16.45309,
+        "longitude": 81.79464
+      },
+      {
+        "latitude": 16.40684,
+        "longitude": 81.58373
+      },
+      {
+        "latitude": 16.40301,
+        "longitude": 81.47057
+      },
+      {
+        "latitude": 16.39042,
+        "longitude": 81.32114
+      },
+      {
+        "latitude": 16.28947,
+        "longitude": 81.20181
+      },
+      {
+        "latitude": 16.1567,
+        "longitude": 81.08245
+      },
+      {
+        "latitude": 16.05749,
+        "longitude": 80.91603
+      },
+      {
+        "latitude": 16.06883,
+        "longitude": 80.71177
+      },
+      {
+        "latitude": 16.01231,
+        "longitude": 80.62341
+      },
+      {
+        "latitude": 15.93369,
+        "longitude": 80.52254
+      },
+      {
+        "latitude": 15.83092,
+        "longitude": 80.38656
+      },
+      {
+        "latitude": 15.7035,
+        "longitude": 80.22971
+      },
+      {
+        "latitude": 15.65532,
+        "longitude": 80.14278
+      },
+      {
+        "latitude": 15.56556,
+        "longitude": 80.07165
+      },
+      {
+        "latitude": 15.3418,
+        "longitude": 80.02612
+      },
+      {
+        "latitude": 15.05603,
+        "longitude": 80.0023
+      },
+      {
+        "latitude": 14.85607,
+        "longitude": 79.98729
+      },
+      {
+        "latitude": 14.50385,
+        "longitude": 79.99665
+      },
+      {
+        "latitude": 14.29469,
+        "longitude": 79.90575
+      },
+      {
+        "latitude": 14.00836,
+        "longitude": 79.89367
+      },
+      {
+        "latitude": 13.77246,
+        "longitude": 79.96653
+      },
+      {
+        "latitude": 13.56417,
+        "longitude": 80.05378
+      },
+      {
+        "latitude": 13.36267,
+        "longitude": 80.13981
+      },
+      {
+        "latitude": 13.18913,
+        "longitude": 80.19168
+      },
+      {
+        "latitude": 13.14278,
+        "longitude": 80.23615
+      },
+      {
+        "latitude": 13.0827,
+        "longitude": 80.27068
+      },
+      {
+        "latitude": 13.0827,
+        "longitude": 80.27068
+      }
+    ],
+    "distanceKm": 1685,
+    "estimatedDuration": "20.8 hrs",
+    "status": "In Transit",
+    "riskLevel": "Medium",
+    "expectedDelivery": "29 Oct 2026",
+    "delay": "+24 hours",
+    "associatedDisruptionId": "WH-MUM",
+    "routeColor": "#F59E0B"
+  },
+  {
+    "orderId": "ORD-448",
+    "shipmentId": "SHP-104",
+    "customer": "Apex Automation Corp",
+    "product": "PRD-056 256GB SSD Controller ICs",
+    "quantity": 500,
+    "origin": "Delhi Northern Freight Center",
+    "originCoordinate": {
+      "latitude": 28.6139,
+      "longitude": 77.209
+    },
+    "destination": "Mumbai Dockside Assembly",
+    "destinationCoordinate": {
+      "latitude": 19.076,
+      "longitude": 72.8777
+    },
+    "carrier": "Western Trunklines Express",
+    "stops": [
+      {
+        "id": "stp-4-1",
+        "name": "Northern Silicon Center",
+        "type": "supplier",
+        "location": "Gurugram Cyber Hub, Delhi NCR",
+        "coordinate": {
+          "latitude": 28.6139,
+          "longitude": 77.209
+        },
+        "plannedArrival": "24 Oct 2026, 07:00",
+        "actualArrival": "24 Oct 2026, 07:10",
+        "status": "completed"
+      },
+      {
+        "id": "stp-4-2",
+        "name": "Jaipur Mid-Transit Depot",
+        "type": "distribution",
+        "location": "Sitapura Industrial Area, Jaipur",
+        "coordinate": {
+          "latitude": 26.9124,
+          "longitude": 75.7873
+        },
+        "plannedArrival": "24 Oct 2026, 17:00",
+        "actualArrival": "24 Oct 2026, 16:50",
+        "status": "completed"
+      },
+      {
+        "id": "stp-4-3",
+        "name": "Ahmedabad Distribution Bay",
+        "type": "warehouse",
+        "location": "Changodar Logistics Park",
+        "coordinate": {
+          "latitude": 23.0225,
+          "longitude": 72.5714
+        },
+        "plannedArrival": "25 Oct 2026, 11:00",
+        "status": "current"
+      },
+      {
+        "id": "stp-4-4",
+        "name": "Apex Automation Plant",
+        "type": "customer",
+        "location": "Andheri East Industrial Area, Mumbai",
+        "coordinate": {
+          "latitude": 19.076,
+          "longitude": 72.8777
+        },
+        "plannedArrival": "27 Oct 2026, 15:00",
+        "status": "pending"
+      }
+    ],
+    "coordinates": [
+      {
+        "latitude": 28.61393,
+        "longitude": 77.20877
+      },
+      {
+        "latitude": 28.53336,
+        "longitude": 77.10666
+      },
+      {
+        "latitude": 28.42829,
+        "longitude": 76.95844
+      },
+      {
+        "latitude": 28.39245,
+        "longitude": 76.86243
+      },
+      {
+        "latitude": 28.30826,
+        "longitude": 76.74547
+      },
+      {
+        "latitude": 28.19184,
+        "longitude": 76.66282
+      },
+      {
+        "latitude": 28.0574,
+        "longitude": 76.53614
+      },
+      {
+        "latitude": 27.8583,
+        "longitude": 76.26501
+      },
+      {
+        "latitude": 27.67106,
+        "longitude": 76.16221
+      },
+      {
+        "latitude": 27.50263,
+        "longitude": 76.05845
+      },
+      {
+        "latitude": 27.38996,
+        "longitude": 75.96733
+      },
+      {
+        "latitude": 27.22455,
+        "longitude": 75.94794
+      },
+      {
+        "latitude": 27.0524,
+        "longitude": 75.91153
+      },
+      {
+        "latitude": 26.95327,
+        "longitude": 75.86459
+      },
+      {
+        "latitude": 26.92511,
+        "longitude": 75.81592
+      },
+      {
+        "latitude": 26.89862,
+        "longitude": 75.75929
+      },
+      {
+        "latitude": 26.89077,
+        "longitude": 75.74115
+      },
+      {
+        "latitude": 26.82596,
+        "longitude": 75.56111
+      },
+      {
+        "latitude": 26.65507,
+        "longitude": 75.15473
+      },
+      {
+        "latitude": 26.55077,
+        "longitude": 74.77859
+      },
+      {
+        "latitude": 26.40614,
+        "longitude": 74.65835
+      },
+      {
+        "latitude": 26.28253,
+        "longitude": 74.51289
+      },
+      {
+        "latitude": 26.1361,
+        "longitude": 74.34987
+      },
+      {
+        "latitude": 25.96936,
+        "longitude": 74.23639
+      },
+      {
+        "latitude": 25.86198,
+        "longitude": 74.13701
+      },
+      {
+        "latitude": 25.78214,
+        "longitude": 74.09426
+      },
+      {
+        "latitude": 25.69113,
+        "longitude": 74.04932
+      },
+      {
+        "latitude": 25.57315,
+        "longitude": 73.89539
+      },
+      {
+        "latitude": 25.3973,
+        "longitude": 73.78446
+      },
+      {
+        "latitude": 25.25441,
+        "longitude": 73.78562
+      },
+      {
+        "latitude": 25.12246,
+        "longitude": 73.85813
+      },
+      {
+        "latitude": 24.95299,
+        "longitude": 73.82855
+      },
+      {
+        "latitude": 24.84463,
+        "longitude": 73.76749
+      },
+      {
+        "latitude": 24.68831,
+        "longitude": 73.73655
+      },
+      {
+        "latitude": 24.57064,
+        "longitude": 73.74511
+      },
+      {
+        "latitude": 24.46382,
+        "longitude": 73.65161
+      },
+      {
+        "latitude": 24.37404,
+        "longitude": 73.63582
+      },
+      {
+        "latitude": 24.28741,
+        "longitude": 73.67368
+      },
+      {
+        "latitude": 24.18865,
+        "longitude": 73.69879
+      },
+      {
+        "latitude": 24.08231,
+        "longitude": 73.68671
+      },
+      {
+        "latitude": 23.99684,
+        "longitude": 73.63521
+      },
+      {
+        "latitude": 23.90695,
+        "longitude": 73.54846
+      },
+      {
+        "latitude": 23.7783,
+        "longitude": 73.51646
+      },
+      {
+        "latitude": 23.75585,
+        "longitude": 73.44087
+      },
+      {
+        "latitude": 23.62318,
+        "longitude": 73.29519
+      },
+      {
+        "latitude": 23.59769,
+        "longitude": 73.06411
+      },
+      {
+        "latitude": 23.47239,
+        "longitude": 72.87927
+      },
+      {
+        "latitude": 23.30866,
+        "longitude": 72.77326
+      },
+      {
+        "latitude": 23.11126,
+        "longitude": 72.67346
+      },
+      {
+        "latitude": 23.0309,
+        "longitude": 72.59816
+      },
+      {
+        "latitude": 22.99556,
+        "longitude": 72.57946
+      },
+      {
+        "latitude": 22.8931,
+        "longitude": 72.59475
+      },
+      {
+        "latitude": 22.71093,
+        "longitude": 72.75744
+      },
+      {
+        "latitude": 22.62408,
+        "longitude": 72.92331
+      },
+      {
+        "latitude": 22.46148,
+        "longitude": 73.06616
+      },
+      {
+        "latitude": 22.23009,
+        "longitude": 73.11424
+      },
+      {
+        "latitude": 21.6563,
+        "longitude": 72.94198
+      },
+      {
+        "latitude": 21.13258,
+        "longitude": 73.03705
+      },
+      {
+        "latitude": 20.83085,
+        "longitude": 73.0668
+      },
+      {
+        "latitude": 20.68402,
+        "longitude": 72.96326
+      },
+      {
+        "latitude": 20.50795,
+        "longitude": 72.9433
+      },
+      {
+        "latitude": 20.28549,
+        "longitude": 72.89776
+      },
+      {
+        "latitude": 20.06267,
+        "longitude": 72.91619
+      },
+      {
+        "latitude": 19.82532,
+        "longitude": 72.94854
+      },
+      {
+        "latitude": 19.68091,
+        "longitude": 72.90877
+      },
+      {
+        "latitude": 19.51377,
+        "longitude": 72.91705
+      },
+      {
+        "latitude": 19.41482,
+        "longitude": 72.876
+      },
+      {
+        "latitude": 19.31631,
+        "longitude": 72.89979
+      },
+      {
+        "latitude": 19.22868,
+        "longitude": 72.86341
+      },
+      {
+        "latitude": 19.11939,
+        "longitude": 72.85581
+      },
+      {
+        "latitude": 19.07671,
+        "longitude": 72.87593
+      },
+      {
+        "latitude": 19.07596,
+        "longitude": 72.87767
+      }
+    ],
+    "distanceKm": 1446,
+    "estimatedDuration": "17.5 hrs",
+    "status": "On Schedule",
+    "riskLevel": "Low",
+    "expectedDelivery": "27 Oct 2026",
+    "routeColor": "#16A36A"
+  }
+]
