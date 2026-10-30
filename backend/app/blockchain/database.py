@@ -40,6 +40,19 @@ class WalletNonce(Base):
     expires_at = Column(DateTime, nullable=False)
     consumed = Column(Boolean, default=False, nullable=False)
 
+class WalletSession(Base):
+    __tablename__ = "wallet_sessions"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    token_hash = Column(String(64), nullable=True, unique=True, index=True)
+    session_token = Column(String(128), nullable=True, unique=True, index=True)
+    user_id = Column(String(128), nullable=False, index=True)
+    organization_id = Column(String(128), nullable=False, index=True)
+    wallet_address = Column(String(42), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    active = Column(Boolean, default=True, nullable=False)
+
 class BlockchainTransaction(Base):
     __tablename__ = "blockchain_transactions"
     
@@ -89,6 +102,12 @@ class OperationalRecoveryPlan(Base):
     plan_id = Column(String(64), nullable=False, index=True)
     version = Column(Integer, nullable=False)
     organization_id = Column(String(128), nullable=False, index=True)
+    canonical_schema_version = Column(String(64), default="trustchain-recovery-plan-v2", nullable=True)
+    disruption_id = Column(String(64), nullable=True, index=True)
+    evidence_manifest_id = Column(String(64), nullable=True, index=True)
+    evidence_manifest_hash = Column(String(66), nullable=True, index=True)
+    canonical_plan_hash = Column(String(66), nullable=True, index=True)
+    is_anchored = Column(Boolean, default=False, nullable=False)
     plan_data_json = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow, nullable=False)

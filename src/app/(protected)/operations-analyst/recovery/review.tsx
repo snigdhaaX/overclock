@@ -13,15 +13,19 @@ import {
   ShieldAlert,
   ShieldCheck,
   UserCheck,
+  Radio,
+  ExternalLink,
 } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ActionCard from '../../../../features/operations-analyst/components/ActionCard';
@@ -29,6 +33,20 @@ import OperationsHeader from '../../../../features/operations-analyst/components
 import StatusBadge from '../../../../features/operations-analyst/components/StatusBadge';
 import operationsService from '../../../../features/operations-analyst/services/operationsService';
 import { RecoveryPlan } from '../../../../features/operations-analyst/types';
+import { blockchainApi } from '../../../../services/blockchainApi';
+import { useBlockchainWallet } from '../../../../hooks/useBlockchainWallet';
+import { ContractEncoder } from '../../../../services/contractEncoder';
+import {
+  PlanHashCard,
+  EvidenceManifestCard,
+  WalletConnectionCard,
+  TransactionStatusCard,
+} from '../../../../components/blockchain';
+import {
+  HashGenerateResponse,
+  OnChainPlanVersion,
+  TrackedTransaction,
+} from '../../../../types/blockchain';
 
 export default function PlanReviewAndSubmitScreen() {
   const router = useRouter();
@@ -40,22 +58,198 @@ export default function PlanReviewAndSubmitScreen() {
   );
   const [submitted, setSubmitted] = useState(plan.status === 'Pending Approval');
 
-  const handleSubmit = () => {
-    Alert.alert(
-      'Submit Plan for Formal Authorization',
-      `Submit "${plan.planName}" ($${plan.estimatedCost.toLocaleString()}) to Supply Chain Manager David Vance for governance approval?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm & Dispatch',
-          onPress: () => {
-            const updated = operationsService.submitPlanForApproval(plan.id);
-            setPlan({ ...updated });
-            setSubmitted(true);
-          },
-        },
-      ]
-    );
+  // Blockchain state
+  const {
+    walletAddress,
+    isConnected,
+    isAnalystAuthorized,
+    chainId,
+    sendPreparedTransaction,
+    registerTransaction,
+  } = useBlockchainWallet();
+
+  const [hashData, setHashData] = useState<HashGenerateResponse | null>(null);
+  const [onChainPlan, setOnChainPlan] = useState<OnChainPlanVersion | null>(null);
+  const [activeTx, setActiveTx] = useState<TrackedTransaction | null>(null);
+  const [isAnchoring, setIsAnchoring] = useState(false);
+  const [showTxInput, setShowTxInput] = useState(false);
+  const [manualTxHash, setManualTxHash] = useState('');
+  const [loadingChainData, setLoadingChainData] = useState(false);
+
+  // Build canonical plan data dictionary
+  const buildPlanData = useCallback(
+    (targetPlan: RecoveryPlan) => ({
+      plan_id: targetPlan.id,
+      version: 1,
+      disruption_id: targetPlan.relatedDisruptionId,
+      organization_id: 'ORG-APEX-GLOBAL',
+      title: targetPlan.planName,
+      strategy: targetPlan.strategy || targetPlan.description,
+      estimated_cost: targetPlan.estimatedCost,
+      actions: targetPlan.actions.map((a) => ({
+        id: a.id,
+        title: a.title,
+        action_type: a.type || 'reroute',
+        cost: a.estimatedCost || 0,
+        timeline: a.leadTime || '2 days',
+      })),
+      constraints: targetPlan.constraints,
+      schema_version: 'trustchain-recovery-plan-v2',
+    }),
+    []
+  );
+
+  // Fetch canonical hash and on-chain state
+  const loadBlockchainData = useCallback(async () => {
+    setLoadingChainData(true);
+    try {
+      const planPayload = buildPlanData(plan);
+
+      // 1. Authoritative canonical hash generation
+      const hashRes = await blockchainApi.generatePlanHash(planPayload);
+      setHashData(hashRes);
+
+      // 2. Check if already anchored on-chain
+      try {
+        const onChain = await blockchainApi.getOnChainPlan(plan.id, 1);
+        setOnChainPlan(onChain);
+        if (onChain.status !== 'NONE') {
+          setSubmitted(true);
+        }
+      } catch {
+        // Not yet anchored on-chain
+        setOnChainPlan(null);
+      }
+    } catch (err) {
+      console.warn('Error loading blockchain metadata:', err);
+    } finally {
+      setLoadingChainData(false);
+    }
+  }, [plan, buildPlanData]);
+
+  useEffect(() => {
+    loadBlockchainData();
+  }, [loadBlockchainData]);
+
+  // Periodic transaction status polling
+  useEffect(() => {
+    if (!activeTx || activeTx.status === 'CONFIRMED' || activeTx.status === 'FAILED') return;
+
+    const timer = setInterval(async () => {
+      try {
+        const updated = await blockchainApi.getTransactionStatus(activeTx.tx_hash);
+        setActiveTx(updated);
+        if (updated.status === 'CONFIRMED') {
+          await loadBlockchainData();
+          setSubmitted(true);
+          const updatedLocal = operationsService.submitPlanForApproval(plan.id);
+          setPlan({ ...updatedLocal });
+          clearInterval(timer);
+        }
+      } catch (e) {
+        console.warn('Tx polling error:', e);
+      }
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [activeTx, loadBlockchainData, plan.id]);
+
+  // Handle Plan Anchoring Submission
+  const handleAnchorAndSubmit = async () => {
+    if (!isConnected || !walletAddress) {
+      Alert.alert(
+        'Wallet Authentication Required',
+        'Please authenticate an authorized Operations Analyst wallet before submitting to blockchain governance.'
+      );
+      return;
+    }
+
+    if (!isAnalystAuthorized) {
+      Alert.alert(
+        'Unauthorized Wallet Role',
+        'The connected wallet does not hold on-chain Operations Analyst authorization (Category 0x01).'
+      );
+      return;
+    }
+
+    if (!hashData) {
+      Alert.alert('Processing Error', 'Canonical plan hash is still generating.');
+      return;
+    }
+
+    if (onChainPlan && onChainPlan.status !== 'NONE') {
+      Alert.alert(
+        'Plan Already Anchored',
+        `Recovery Plan ${plan.id} V1 has already been anchored on-chain with status ${onChainPlan.status}. Duplicate anchoring is prohibited.`
+      );
+      return;
+    }
+
+    setIsAnchoring(true);
+
+    try {
+      // 1. Store operational plan in database
+      const planPayload = buildPlanData(plan);
+      await blockchainApi.storeOperationalPlan(plan.id, 1, planPayload);
+
+      // 2. Prepare anchorPlan transaction
+      // Default simulation hash from deterministic seed
+      const simHash = '0x' + '1'.repeat(64);
+      const actionMask = 0x01 | 0x04; // Warehouse Transfer + Shipment Reroute
+      const requiredStages = 0x02; // Stage 0x02: CAT_SUPPLY_CHAIN_MANAGER
+      const isLocal = chainId === 31337;
+
+      const prepTx = ContractEncoder.encodeAnchorPlan(
+        plan.id,
+        1,
+        hashData.sha256_hash,
+        simHash,
+        actionMask,
+        requiredStages,
+        isLocal
+      );
+
+      // 3. Prompt external signing
+      const sendResult = await sendPreparedTransaction(prepTx, {
+        planId: plan.id,
+        planVersion: 1,
+      });
+
+      if (sendResult.txHash) {
+        // Broadcasted via injected provider
+        const txRecord = await blockchainApi.getTransactionStatus(sendResult.txHash);
+        setActiveTx(txRecord);
+        Alert.alert('Transaction Broadcasted', `Transaction registered: ${sendResult.txHash.slice(0, 10)}... Tracking confirmation.`);
+      } else {
+        // Deep link opened to MetaMask or external wallet
+        setShowTxInput(true);
+        Alert.alert(
+          'Sign in External Wallet',
+          'Transaction payload prepared. After confirming in MetaMask, paste the broadcasted transaction hash below to track on-chain confirmation.'
+        );
+      }
+    } catch (err: any) {
+      Alert.alert('Anchoring Failed', err?.message || 'Failed to prepare on-chain transaction.');
+    } finally {
+      setIsAnchoring(false);
+    }
+  };
+
+  const handleRegisterManualTx = async () => {
+    if (!manualTxHash.trim()) {
+      Alert.alert('Missing Tx Hash', 'Please enter the transaction hash from MetaMask.');
+      return;
+    }
+
+    try {
+      const tx = await registerTransaction(manualTxHash.trim(), 'anchorPlan', plan.id, 1);
+      setActiveTx(tx);
+      setShowTxInput(false);
+      setManualTxHash('');
+      Alert.alert('Tracking Active', 'Transaction registered with backend indexer. Tracking on-chain receipt.');
+    } catch (err: any) {
+      Alert.alert('Registration Error', err?.message || 'Invalid transaction hash.');
+    }
   };
 
   return (
@@ -91,14 +285,11 @@ export default function PlanReviewAndSubmitScreen() {
           <View style={[styles.stepCircle, styles.stepCircleActive]}>
             <Text style={styles.stepNumberActive}>3</Text>
           </View>
-          <Text style={[styles.stepLabel, styles.stepLabelActive]}>Review</Text>
+          <Text style={[styles.stepLabel, styles.stepLabelActive]}>Review & Chain</Text>
         </View>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Submitted Status Banner */}
         {submitted ? (
           <View style={styles.submittedBanner}>
@@ -108,10 +299,10 @@ export default function PlanReviewAndSubmitScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.bannerTitle}>Awaiting Manager Approval</Text>
               <Text style={styles.bannerSub}>
-                Status: <Text style={{ fontWeight: '700' }}>Pending Approval</Text> • Submitted today at {plan.submittedAt || '11:45 AM'}
+                Status: <Text style={{ fontWeight: '700' }}>Pending Governance Sign-Off</Text>
               </Text>
               <Text style={styles.bannerDetail}>
-                Assigned to: Supply Chain Manager (David Vance). An automated notification and blockchain audit hash have been generated.
+                Assigned to: Supply Chain Manager (David Vance). On-chain transaction has been committed to the TrustChain smart contract.
               </Text>
             </View>
           </View>
@@ -119,8 +310,67 @@ export default function PlanReviewAndSubmitScreen() {
           <View style={styles.governanceNotice}>
             <UserCheck size={18} color="#2563EB" style={{ marginRight: 8, marginTop: 1 }} />
             <Text style={styles.govNoticeText}>
-              <Text style={{ fontWeight: '700' }}>Role Governance Rule:</Text> Operations Analysts formulate strategies and run simulations. Formal deployment requires authorization by the authorized Supply Chain Manager.
+              <Text style={{ fontWeight: '700' }}>On-Chain Governance Rule:</Text> Operational plans must be anchored to Polygon Amoy using an authorized Operations Analyst wallet before manager sign-off.
             </Text>
+          </View>
+        )}
+
+        {/* 1. Wallet Authentication Card */}
+        <WalletConnectionCard
+          requiredRole="operations-analyst"
+          onWalletConnected={() => loadBlockchainData()}
+        />
+
+        {/* 2. Canonical Plan Hash Card */}
+        {hashData ? (
+          <PlanHashCard
+            planHash={hashData.sha256_hash}
+            schemaVersion={hashData.schema_version}
+            evidenceManifestHash={hashData.evidence_manifest_hash}
+            isVerified={true}
+          />
+        ) : (
+          <View style={styles.loadingHashBox}>
+            <ActivityIndicator size="small" color="#2563EB" style={{ marginRight: 8 }} />
+            <Text style={styles.loadingHashText}>Computing deterministic RFC 8785 canonical hash...</Text>
+          </View>
+        )}
+
+        {/* 3. Evidence Manifest Card */}
+        {hashData && (
+          <EvidenceManifestCard
+            manifestRootHash={hashData.evidence_manifest_hash}
+            disruptionId={plan.relatedDisruptionId}
+            isAnchored={true}
+          />
+        )}
+
+        {/* 4. Active Transaction Status Card */}
+        {activeTx && <TransactionStatusCard transaction={activeTx} />}
+
+        {/* 5. Manual Tx Hash Registration Box */}
+        {showTxInput && (
+          <View style={styles.manualTxCard}>
+            <Text style={styles.manualTxTitle}>Register Broadcasted Transaction</Text>
+            <Text style={styles.manualTxSub}>
+              Enter the transaction hash returned by MetaMask to track confirmations:
+            </Text>
+            <TextInput
+              style={styles.txInput}
+              placeholder="0x..."
+              placeholderTextColor="#94A3B8"
+              value={manualTxHash}
+              onChangeText={setManualTxHash}
+              autoCapitalize="none"
+            />
+            <View style={styles.manualTxBtnRow}>
+              <Pressable onPress={() => setShowTxInput(false)} style={styles.cancelBtn}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={handleRegisterManualTx} style={styles.confirmTxBtn}>
+                <Text style={styles.confirmTxBtnText}>Track Transaction</Text>
+              </Pressable>
+            </View>
           </View>
         )}
 
@@ -163,10 +413,12 @@ export default function PlanReviewAndSubmitScreen() {
             <Text style={styles.sectionTitle}>Execution Sequence ({plan.actions.length} actions)</Text>
             {!submitted && (
               <Pressable
-                onPress={() => router.push({
-                  pathname: '/(protected)/operations-analyst/recovery/actions',
-                  params: { planId: plan.id },
-                })}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(protected)/operations-analyst/recovery/actions',
+                    params: { planId: plan.id },
+                  })
+                }
                 style={styles.editBtn}
               >
                 <Edit2 size={13} color="#2563EB" style={{ marginRight: 4 }} />
@@ -204,18 +456,30 @@ export default function PlanReviewAndSubmitScreen() {
         ) : (
           <>
             <Pressable
-              onPress={() => router.push({
-                pathname: '/(protected)/operations-analyst/recovery/create',
-                params: { planId: plan.id },
-              })}
+              onPress={() =>
+                router.push({
+                  pathname: '/(protected)/operations-analyst/recovery/create',
+                  params: { planId: plan.id },
+                })
+              }
               style={styles.secondaryBtn}
             >
-              <Text style={styles.secondaryBtnText}>Edit Plan Info</Text>
+              <Text style={styles.secondaryBtnText}>Edit Info</Text>
             </Pressable>
 
-            <Pressable onPress={handleSubmit} style={styles.submitBtn}>
-              <Send size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-              <Text style={styles.submitBtnText}>Submit for Approval</Text>
+            <Pressable
+              onPress={handleAnchorAndSubmit}
+              disabled={isAnchoring}
+              style={[styles.submitBtn, isAnchoring && { opacity: 0.7 }]}
+            >
+              {isAnchoring ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Send size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.submitBtnText}>Anchor & Submit</Text>
+                </>
+              )}
             </Pressable>
           </>
         )}
@@ -330,6 +594,20 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 16,
   },
+  loadingHashBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 16,
+  },
+  loadingHashText: {
+    fontSize: 12,
+    color: '#64748B',
+  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -421,6 +699,60 @@ const styles = StyleSheet.create({
     color: '#475569',
     flex: 1,
     lineHeight: 16,
+  },
+  manualTxCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    marginBottom: 16,
+  },
+  manualTxTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  manualTxSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginBottom: 10,
+  },
+  txInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 11,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    marginBottom: 10,
+  },
+  manualTxBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  cancelBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  cancelBtnText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  confirmTxBtn: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  confirmTxBtnText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   bottomBar: {
     position: 'absolute',

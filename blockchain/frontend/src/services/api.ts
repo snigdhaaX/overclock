@@ -11,20 +11,46 @@ import {
   OnChainWalletInfo,
 } from "../types/blockchain";
 
+import {
+  Supplier,
+  PurchaseOrder,
+  Shipment,
+  Warehouse,
+  InventoryItem,
+  Disruption,
+  DisruptionRisk,
+  DisruptionImpact,
+  RecoveryRecommendation,
+  SimulationResult,
+  RecoveryPlanDataContract,
+  PaginatedResponse,
+  IntelligenceSource,
+  ExternalDisruptionEvent,
+  IngestionRun,
+  EventIntegrityVerification,
+} from "../types/supplyChain";
+
 const API_BASE = "";
 
-// Development authentication context headers
-const getAuthHeaders = () => {
-  const userId = localStorage.getItem("trustchain_user_id") || "user:analyst-101";
-  const orgId = localStorage.getItem("trustchain_org_id") || "org:acme-logistics";
+// Authenticated session context headers with Bearer token
+export const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem("trustchain_session_token");
+  const userId = localStorage.getItem("trustchain_user_id") || "user:ops-analyst-88";
+  const orgId = localStorage.getItem("trustchain_org_id") || "ORG-APEX-GLOBAL";
   const userRoles = localStorage.getItem("trustchain_user_roles") || "operations_analyst";
 
-  return {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-User-Id": userId,
     "X-Organization-Id": orgId,
     "X-User-Roles": userRoles,
   };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return headers;
 };
 
 export const api = {
@@ -35,7 +61,7 @@ export const api = {
     return res.json();
   },
 
-  // --- Wallet Nonces & Linking ---
+  // --- Wallet Nonces & Session Linking ---
   async requestWalletNonce(): Promise<NonceResponse> {
     const res = await fetch(`${API_BASE}/blockchain/wallet/nonce`, {
       method: "POST",
@@ -66,7 +92,14 @@ export const api = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || "Failed to verify signature.");
     }
-    return res.json();
+    const data = await res.json();
+    if (data.session_token) {
+      localStorage.setItem("trustchain_session_token", data.session_token);
+      localStorage.setItem("trustchain_wallet_address", data.wallet_address);
+      localStorage.setItem("trustchain_org_id", data.organization_id);
+      localStorage.setItem("trustchain_user_id", data.user_id);
+    }
+    return data;
   },
 
   async getLinkedWallet(): Promise<LinkedWalletResponse> {
@@ -88,6 +121,7 @@ export const api = {
       }
     );
     if (!res.ok) throw new Error("Failed to unlink wallet.");
+    localStorage.removeItem("trustchain_session_token");
     return res.json();
   },
 
@@ -99,7 +133,7 @@ export const api = {
     return res.json();
   },
 
-  // --- Hashing ---
+  // --- Canonical Hashing ---
   async generateCanonicalHash(planData: Record<string, any>): Promise<{
     canonical_json: string;
     sha256_hash: string;
@@ -233,15 +267,385 @@ export const api = {
     if (!res.ok) throw new Error("Failed to store operational plan.");
     return res.json();
   },
+
+  // =========================================================================
+  // SUPPLY CHAIN CORE & INTELLIGENCE APIs
+  // =========================================================================
+
+  async getActiveDisruptions(): Promise<Disruption[]> {
+    const res = await fetch(`${API_BASE}/api/v1/disruptions/active`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch active disruptions.");
+    return res.json();
+  },
+
+  async getDisruptionById(disruptionId: string | number): Promise<Disruption> {
+    const res = await fetch(`${API_BASE}/api/v1/disruptions/${encodeURIComponent(disruptionId)}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch disruption details.");
+    return res.json();
+  },
+
+  async getDisruptionRisk(disruptionId: string | number): Promise<DisruptionRisk> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/disruptions/${encodeURIComponent(disruptionId)}/risk`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to calculate disruption risk.");
+    return res.json();
+  },
+
+  async getDisruptionImpact(disruptionId: string | number): Promise<DisruptionImpact> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/disruptions/${encodeURIComponent(disruptionId)}/impact`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to retrieve disruption impact.");
+    return res.json();
+  },
+
+  async simulateDisruptionImpact(disruptionId: string | number): Promise<DisruptionImpact> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/disruptions/${encodeURIComponent(disruptionId)}/simulate-impact`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to simulate disruption impact.");
+    return res.json();
+  },
+
+  async getRecoveryRecommendations(
+    disruptionId: string | number
+  ): Promise<RecoveryRecommendation[]> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/disruptions/${encodeURIComponent(disruptionId)}/recommend-actions`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to generate recovery recommendations.");
+    return res.json();
+  },
+
+  async evaluateSimulation(payload: {
+    disruption_id?: number;
+    incident_code?: string;
+    candidate_recommendations?: any[];
+  }): Promise<SimulationResult> {
+    const res = await fetch(`${API_BASE}/api/v1/simulation/evaluate`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to evaluate recovery simulation.");
+    return res.json();
+  },
+
+  async getSimulationById(simulationId: string): Promise<SimulationResult> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/simulation/${encodeURIComponent(simulationId)}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to retrieve simulation by ID.");
+    return res.json();
+  },
+
+  async generateRecoveryPlan(payload: {
+    incident_id: string;
+    action_type: string;
+    proposed_actions?: string[];
+    affected_shipments?: string[];
+    affected_orders?: string[];
+    estimated_recovery_time_hours?: number;
+    recovery_cost_usd?: number;
+    simulation_results?: Record<string, any>;
+    assumptions?: string[];
+  }): Promise<RecoveryPlanDataContract> {
+    const res = await fetch(`${API_BASE}/api/v1/recovery-plans/generate`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Failed to generate recovery plan.");
+    }
+    return res.json();
+  },
+
+  async getRecoveryPlans(
+    page = 1,
+    pageSize = 20,
+    statusFilter?: string
+  ): Promise<PaginatedResponse<RecoveryPlanDataContract>> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    });
+    if (statusFilter) params.append("status", statusFilter);
+    const res = await fetch(`${API_BASE}/api/v1/recovery-plans?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch recovery plans.");
+    return res.json();
+  },
+
+  async getRecoveryPlanById(planId: string): Promise<RecoveryPlanDataContract> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/recovery-plans/${encodeURIComponent(planId)}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to retrieve recovery plan.");
+    return res.json();
+  },
+
+  async getSuppliers(
+    page = 1,
+    pageSize = 20,
+    search?: string,
+    tier?: string
+  ): Promise<PaginatedResponse<Supplier>> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    });
+    if (search) params.append("search", search);
+    if (tier) params.append("tier", tier);
+    const res = await fetch(`${API_BASE}/api/v1/supply-chain/suppliers?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch suppliers.");
+    return res.json();
+  },
+
+  async getPurchaseOrders(
+    page = 1,
+    pageSize = 20,
+    statusFilter?: string
+  ): Promise<PaginatedResponse<PurchaseOrder>> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    });
+    if (statusFilter) params.append("status", statusFilter);
+    const res = await fetch(`${API_BASE}/api/v1/supply-chain/orders?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch purchase orders.");
+    return res.json();
+  },
+
+  async getShipments(
+    page = 1,
+    pageSize = 20,
+    statusFilter?: string,
+    transportMode?: string
+  ): Promise<PaginatedResponse<Shipment>> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    });
+    if (statusFilter) params.append("status", statusFilter);
+    if (transportMode) params.append("transport_mode", transportMode);
+    const res = await fetch(`${API_BASE}/api/v1/supply-chain/shipments?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch shipments.");
+    return res.json();
+  },
+
+  async getShipmentById(shipmentId: string | number): Promise<Shipment> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/supply-chain/shipments/${encodeURIComponent(shipmentId)}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to fetch shipment details.");
+    return res.json();
+  },
+
+  async getWarehouses(page = 1, pageSize = 20): Promise<PaginatedResponse<Warehouse>> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    });
+    const res = await fetch(`${API_BASE}/api/v1/supply-chain/warehouses?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch warehouses.");
+    return res.json();
+  },
+
+  async getInventory(
+    page = 1,
+    pageSize = 20,
+    warehouseId?: number,
+    sku?: string
+  ): Promise<PaginatedResponse<InventoryItem>> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    });
+    if (warehouseId) params.append("warehouse_id", warehouseId.toString());
+    if (sku) params.append("sku", sku);
+    const res = await fetch(`${API_BASE}/api/v1/supply-chain/inventory?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch inventory items.");
+    return res.json();
+  },
+
+  // --- Phase 5: External Disruption Intelligence & Ingestion ---
+  async getIntelligenceSources(): Promise<IntelligenceSource[]> {
+    const res = await fetch(`${API_BASE}/api/v1/intelligence/sources`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch intelligence sources.");
+    return res.json();
+  },
+
+  async triggerIngestionRun(sourceId?: string, forceDemo = false): Promise<any> {
+    const params = new URLSearchParams();
+    if (sourceId) params.append("source_id", sourceId);
+    if (forceDemo) params.append("force_demo", "true");
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    const res = await fetch(`${API_BASE}/api/v1/intelligence/ingest/run${qs}`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to execute intelligence ingestion run.");
+    return res.json();
+  },
+
+  async getExternalEvents(
+    page = 1,
+    pageSize = 20,
+    statusFilter?: string,
+    mode?: string
+  ): Promise<PaginatedResponse<ExternalDisruptionEvent>> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    });
+    if (statusFilter) params.append("status", statusFilter);
+    if (mode) params.append("mode", mode);
+    const res = await fetch(`${API_BASE}/api/v1/intelligence/events?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch external disruption events.");
+    return res.json();
+  },
+
+  async getExternalEventById(eventId: string): Promise<ExternalDisruptionEvent> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/intelligence/events/${encodeURIComponent(eventId)}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to fetch external event details.");
+    return res.json();
+  },
+
+  async confirmExternalEvent(
+    eventId: string,
+    notes: string
+  ): Promise<Disruption> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/intelligence/events/${encodeURIComponent(eventId)}/confirm`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ action: "CONFIRM", notes }),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to confirm intelligence event into operational disruption.");
+    return res.json();
+  },
+
+  async rejectExternalEvent(
+    eventId: string,
+    notes: string
+  ): Promise<ExternalDisruptionEvent> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/intelligence/events/${encodeURIComponent(eventId)}/reject`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ action: "REJECT", notes }),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to reject external event.");
+    return res.json();
+  },
+
+  async submitManualEvent(payload: {
+    title: string;
+    description: string;
+    category: string;
+    severity: string;
+    geographic_region: string;
+    latitude?: number;
+    longitude?: number;
+    affected_corridor?: string;
+    source_url?: string;
+    evidence_summary?: string;
+  }): Promise<ExternalDisruptionEvent> {
+    const res = await fetch(`${API_BASE}/api/v1/intelligence/ingest/manual`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to submit manual intelligence report.");
+    return res.json();
+  },
+
+  async getIngestionHistory(limit = 20): Promise<IngestionRun[]> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/intelligence/ingestion/status?limit=${limit}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to fetch ingestion history.");
+    return res.json();
+  },
+
+  async verifyEventEvidence(eventId: string): Promise<EventIntegrityVerification> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/intelligence/events/${encodeURIComponent(eventId)}/integrity`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to verify event evidence integrity.");
+    return res.json();
+  },
 };
 
 // --- Named Convenience Functions ---
 export const fetchNetworkStatus = (): Promise<NetworkInfo> => api.getNetworkInfo();
 
 export const fetchTrackedTransactions = async (
-  limit: number = 50
+  limit = 50
 ): Promise<TrackedTransaction[]> => {
-  const res = await fetch(`${API_BASE}/blockchain/transactions/tracked?limit=${limit}`);
+  const res = await fetch(`${API_BASE}/blockchain/transactions/tracked?limit=${limit}`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error("Failed to fetch tracked transactions.");
   return res.json();
 };
@@ -256,7 +660,9 @@ export const fetchIndexedEvents = async (opts?: {
   if (opts?.version !== undefined) params.append("version", opts.version.toString());
   if (opts?.limit) params.append("limit", opts.limit.toString());
   const qs = params.toString() ? `?${params.toString()}` : "";
-  const res = await fetch(`${API_BASE}/blockchain/events${qs}`);
+  const res = await fetch(`${API_BASE}/blockchain/events${qs}`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error("Failed to fetch indexed events.");
   return res.json();
 };
@@ -283,7 +689,9 @@ export const fetchPlanDecisions = async (
 export const fetchPlanLatestVersion = async (
   planId: string
 ): Promise<{ plan_id: string; latest_version: number | null }> => {
-  const res = await fetch(`${API_BASE}/blockchain/plan/${encodeURIComponent(planId)}/latest`);
+  const res = await fetch(`${API_BASE}/blockchain/plan/${encodeURIComponent(planId)}/latest`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error("Failed to fetch latest plan version.");
   return res.json();
 };

@@ -1,10 +1,18 @@
 import React from "react";
 import {
   LayoutDashboard,
-  Wallet,
+  AlertTriangle,
+  Network,
+  Building2,
+  FileText,
+  Truck,
+  Warehouse,
+  Compass,
+  Sliders,
   ShieldCheck,
   FileCheck2,
   ListOrdered,
+  Wallet,
   Layers,
 } from "lucide-react";
 
@@ -21,115 +29,124 @@ export const Sidebar: React.FC<SidebarProps> = ({
   networkName = "Polygon Amoy",
   isAmoy,
 }) => {
-  const navItems = [
-    { id: "overview", label: "Overview", icon: LayoutDashboard },
-    { id: "wallet", label: "Wallet Management", icon: Wallet },
-    { id: "governance", label: "Plan Governance", icon: ShieldCheck },
-    { id: "verification", label: "Verification Centre", icon: FileCheck2 },
-    { id: "transactions", label: "Transaction Explorer", icon: ListOrdered },
+  const sections = [
+    {
+      group: "INTELLIGENCE & OPERATIONS",
+      items: [
+        { id: "overview", label: "Executive Overview", icon: LayoutDashboard },
+        { id: "disruptions", label: "Disruption Intelligence", icon: AlertTriangle },
+        { id: "network", label: "Supply Chain Network", icon: Network },
+        { id: "suppliers", label: "Suppliers", icon: Building2 },
+        { id: "purchase-orders", label: "Purchase Orders", icon: FileText },
+        { id: "shipments", label: "Shipment Monitoring", icon: Truck },
+        { id: "inventory", label: "Warehouses & Inventory", icon: Warehouse },
+      ],
+    },
+    {
+      group: "AI RECOVERY & DECISION",
+      items: [
+        { id: "recovery-planning", label: "Recovery Planning", icon: Compass },
+        { id: "simulation", label: "Simulation & Optimisation", icon: Sliders },
+      ],
+    },
+    {
+      group: "BLOCKCHAIN GOVERNANCE",
+      items: [
+        { id: "governance", label: "Governance & Approvals", icon: ShieldCheck },
+        { id: "verification", label: "Verification Centre", icon: FileCheck2 },
+        { id: "transactions", label: "Audit & Transactions", icon: ListOrdered },
+        { id: "wallet", label: "Wallet & Settings", icon: Wallet },
+      ],
+    },
   ];
 
   return (
     <aside
+      className="w-64 bg-navy-950 flex flex-col flex-shrink-0 border-r border-slate-800 select-none overflow-hidden"
       style={{
-        width: "260px",
         backgroundColor: "var(--bg-secondary)",
         borderRight: "1px solid var(--border-color)",
-        display: "flex",
-        flexDirection: "column",
-        flexShrink: 0,
       }}
     >
       {/* Brand Header */}
       <div
-        style={{
-          padding: "1.5rem",
-          display: "flex",
-          alignItems: "center",
-          gap: "0.75rem",
-          borderBottom: "1px solid var(--border-color)",
-        }}
+        className="p-4 flex items-center gap-3 border-b border-slate-800"
+        style={{ borderBottom: "1px solid var(--border-color)" }}
       >
         <div
-          style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "8px",
-            backgroundColor: "var(--accent-orange)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontWeight: 800,
-          }}
+          className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-white shadow-sm flex-shrink-0"
+          style={{ backgroundColor: "var(--accent-orange)" }}
         >
           <Layers size={20} />
         </div>
-        <div>
-          <div style={{ fontWeight: 800, fontSize: "1.125rem", letterSpacing: "-0.02em" }}>
+        <div className="min-w-0">
+          <div className="font-extrabold text-base tracking-tight text-white leading-tight">
             TRUST<span style={{ color: "var(--accent-orange)" }}>CHAIN</span>
           </div>
-          <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-            Blockchain Module
+          <div className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">
+            Disruption Platform
           </div>
         </div>
       </div>
 
-      {/* Navigation Links */}
-      <nav style={{ padding: "1rem", flex: 1, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-                padding: "0.75rem 1rem",
-                borderRadius: "8px",
-                border: "none",
-                background: isActive ? "var(--bg-panel)" : "transparent",
-                color: isActive ? "var(--accent-orange)" : "var(--text-secondary)",
-                fontWeight: isActive ? 600 : 500,
-                fontSize: "0.875rem",
-                cursor: "pointer",
-                textAlign: "left",
-                width: "100%",
-                transition: "all 0.15s ease",
-                borderLeft: isActive ? "3px solid var(--accent-orange)" : "3px solid transparent",
-              }}
-            >
-              <Icon size={18} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      {/* Navigation Sections */}
+      <div className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+        {sections.map((section) => (
+          <div key={section.group}>
+            <div className="px-3 pb-1 text-[10px] font-bold text-slate-400 tracking-wider uppercase">
+              {section.group}
+            </div>
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-all text-left ${
+                      isActive
+                        ? "text-orange-400 font-semibold"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                    }`}
+                    style={{
+                      background: isActive ? "var(--bg-panel)" : "transparent",
+                      borderLeft: isActive
+                        ? "3px solid var(--accent-orange)"
+                        : "3px solid transparent",
+                    }}
+                  >
+                    <Icon size={16} className={isActive ? "text-orange-400" : "text-slate-400"} />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
 
-      {/* Network Badge at Bottom */}
+      {/* Target Network & Identity Status Footer */}
       <div
-        style={{
-          padding: "1.25rem",
-          borderTop: "1px solid var(--border-color)",
-          backgroundColor: "rgba(0, 0, 0, 0.2)",
-        }}
+        className="p-3 border-t border-slate-800 text-xs bg-black/20"
+        style={{ borderTop: "1px solid var(--border-color)" }}
       >
-        <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)", marginBottom: "0.375rem" }}>
-          TARGET NETWORK
+        <div className="text-[10px] text-slate-400 font-semibold uppercase mb-1">
+          Active Environment
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <div
-            style={{
-              width: "8px",
-              height: "8px",
-              borderRadius: "50%",
-              backgroundColor: isAmoy ? "var(--status-green)" : "var(--status-amber)",
-            }}
-          />
-          <span style={{ fontSize: "0.8125rem", fontWeight: 600 }}>{networkName}</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span
+              className="w-2 h-2 rounded-full animate-pulse"
+              style={{
+                backgroundColor: isAmoy ? "var(--status-green)" : "var(--status-amber)",
+              }}
+            />
+            <span className="text-xs font-semibold text-slate-200">{networkName}</span>
+          </div>
+          <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-slate-800/60 border border-slate-700/50">
+            ORG-APEX
+          </span>
         </div>
       </div>
     </aside>

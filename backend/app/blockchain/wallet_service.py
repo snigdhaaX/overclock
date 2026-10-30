@@ -1,12 +1,13 @@
 import datetime
 import secrets
+import hashlib
 from typing import Any, Dict, Optional, Tuple
 from web3 import Web3
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from sqlalchemy.orm import Session
 from .config import settings
-from .database import WalletNonce, UserWallet
+from .database import WalletNonce, UserWallet, WalletSession
 from .contract_service import ContractService
 
 class WalletVerificationError(Exception):
@@ -23,6 +24,12 @@ class NonceNotFoundError(WalletVerificationError):
     pass
 
 class SignatureMismatchError(WalletVerificationError):
+    pass
+
+class SessionInvalidError(WalletVerificationError):
+    pass
+
+class SessionExpiredError(WalletVerificationError):
     pass
 
 class WalletService:
@@ -180,7 +187,25 @@ class WalletService:
         db.commit()
         db.refresh(user_wallet)
 
-        # 9. Query on-chain registration status if contract service is configured
+        # 9. Create cryptographic authenticated session token (stored as SHA-256 hash)
+        session_token = f"tcs_{secrets.token_urlsafe(32)}"
+        token_hash = hashlib.sha256(session_token.encode("utf-8")).hexdigest()
+        session_expires_at = now + datetime.timedelta(hours=24)
+        wallet_session = WalletSession(
+            token_hash=token_hash,
+            session_token=None,  # Zero plaintext token storage in database
+            user_id=user_id,
+            organization_id=organization_id,
+            wallet_address=checksum_address,
+            created_at=now,
+            expires_at=session_expires_at,
+            active=True,
+        )
+        db.add(wallet_session)
+        db.commit()
+        db.refresh(wallet_session)
+
+        # 10. Query on-chain registration status if contract service is configured
         on_chain_status = None
         if contract_service and contract_service.contract_address:
             try:
@@ -193,9 +218,60 @@ class WalletService:
             "user_id": user_id,
             "organization_id": organization_id,
             "wallet_address": checksum_address,
+            "session_token": session_token,
+            "session_expires_at": session_expires_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "linked_at": user_wallet.linked_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "on_chain_status": on_chain_status,
         }
+
+    @classmethod
+    def validate_session(cls, db: Session, token: str) -> Optional[WalletSession]:
+        """Validates a cryptographic session token using SHA-256 hash matching. Returns active session or None."""
+        if not token:
+            return None
+        clean_token = token.strip()
+        if clean_token.lower().startswith("bearer "):
+            clean_token = clean_token[7:].strip()
+        token_hash = hashlib.sha256(clean_token.encode("utf-8")).hexdigest()
+        
+        # Look up by SHA-256 hash or legacy plaintext token
+        session = (
+            db.query(WalletSession)
+            .filter(
+                (WalletSession.token_hash == token_hash) | (WalletSession.session_token == clean_token),
+                WalletSession.active == True,
+            )
+            .first()
+        )
+        if not session:
+            return None
+        now = datetime.datetime.utcnow()
+        if now > session.expires_at:
+            session.active = False
+            db.commit()
+            return None
+        return session
+
+    @classmethod
+    def revoke_session(cls, db: Session, token: str) -> bool:
+        """Revokes an active session token server-side."""
+        clean_token = token.strip()
+        if clean_token.lower().startswith("bearer "):
+            clean_token = clean_token[7:].strip()
+        token_hash = hashlib.sha256(clean_token.encode("utf-8")).hexdigest()
+        
+        session = (
+            db.query(WalletSession)
+            .filter(
+                (WalletSession.token_hash == token_hash) | (WalletSession.session_token == clean_token)
+            )
+            .first()
+        )
+        if session:
+            session.active = False
+            db.commit()
+            return True
+        return False
 
     @classmethod
     def get_linked_wallet(cls, db: Session, user_id: str) -> Optional[Dict[str, Any]]:

@@ -105,10 +105,10 @@
 | Component | Framework | Tests | Status |
 |---|---|---|---|
 | Smart Contracts | Hardhat / Mocha / Chai | 94 passing | ✅ 100% Green |
-| Backend & Governance Services | Pytest / Web3.py / FastAPI | 34 passing | ✅ 100% Green |
+| Backend & Governance Services | Pytest / Web3.py / FastAPI | 123 passing | ✅ 100% Green |
 | Frontend Verification Centre | Vite / TypeScript | 0 errors | ✅ Production build verified |
 | Mobile Application | TypeScript / Expo Lint | Validated | ✅ Verified |
-| **Total Test Suite** | | **128 Passing** | **All Passing** |
+| **Total Test Suite** | | **217 Passing** | **All Passing** |
 
 ---
 

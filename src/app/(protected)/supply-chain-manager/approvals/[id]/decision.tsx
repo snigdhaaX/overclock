@@ -9,8 +9,10 @@ import {
   ShieldAlert,
   ShieldCheck,
   XCircle,
+  Clock,
+  ExternalLink,
 } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Alert,
   Pressable,
@@ -19,10 +21,19 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
 import managerService from '@/features/supply-chain-manager/services/managerService';
+import { useBlockchainWallet } from '@/hooks/useBlockchainWallet';
+import { blockchainApi } from '@/services/blockchainApi';
+import { ContractEncoder } from '@/services/contractEncoder';
+import {
+  WalletConnectionCard,
+  TransactionStatusCard,
+} from '@/components/blockchain';
+import { TrackedTransaction } from '@/types/blockchain';
 
 export default function ApprovalDecisionScreen() {
   const router = useRouter();
@@ -39,54 +50,197 @@ export default function ApprovalDecisionScreen() {
   );
   const [decisionCompleted, setDecisionCompleted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [activeTx, setActiveTx] = useState<TrackedTransaction | null>(null);
+  const [showManualTx, setShowManualTx] = useState(false);
+  const [manualTxHash, setManualTxHash] = useState('');
 
   const plan =
     managerService.getRecoveryPlanById(id || 'RP-001') ||
     managerService.getRecoveryPlanById('RP-001')!;
 
-  const handleExecuteDecision = () => {
+  const {
+    walletAddress,
+    isConnected,
+    isManagerAuthorized,
+    chainId,
+    sendPreparedTransaction,
+    registerTransaction,
+  } = useBlockchainWallet();
+
+  // Polling transaction status
+  useEffect(() => {
+    if (!activeTx || activeTx.status === 'CONFIRMED' || activeTx.status === 'FAILED') return;
+
+    const timer = setInterval(async () => {
+      try {
+        const updated = await blockchainApi.getTransactionStatus(activeTx.tx_hash);
+        setActiveTx(updated);
+        if (updated.status === 'CONFIRMED') {
+          // Reconcile and commit local change
+          try {
+            await blockchainApi.reconcileTransaction(activeTx.tx_hash);
+          } catch (e) {
+            console.warn('Reconciliation notice:', e);
+          }
+
+          if (decisionMode === 'approve') {
+            managerService.approvePlan({
+              planId: plan.id,
+              decision: 'approved',
+              actor: walletAddress || 'Supply Chain Manager',
+              role: 'Supply Chain Manager',
+              comments: approvalComments,
+            });
+          } else if (decisionMode === 'reject') {
+            managerService.rejectPlan({
+              planId: plan.id,
+              decision: 'rejected',
+              actor: walletAddress || 'Supply Chain Manager',
+              role: 'Supply Chain Manager',
+              reason: rejectionReason,
+              comments: rejectionComments,
+            });
+          } else if (decisionMode === 'changes') {
+            managerService.requestPlanChanges({
+              planId: plan.id,
+              decision: 'changes_requested',
+              actor: walletAddress || 'Supply Chain Manager',
+              role: 'Supply Chain Manager',
+              changeRequirements,
+            });
+          }
+
+          setDecisionCompleted(true);
+          clearInterval(timer);
+        }
+      } catch (err) {
+        console.warn('Tx polling error:', err);
+      }
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [
+    activeTx,
+    decisionMode,
+    plan.id,
+    approvalComments,
+    rejectionReason,
+    rejectionComments,
+    changeRequirements,
+    walletAddress,
+  ]);
+
+  const handleExecuteDecision = async () => {
     setErrorMessage('');
 
+    // 1. Enforce wallet connection & on-chain manager role
+    if (!isConnected || !walletAddress) {
+      setErrorMessage('Supply Chain Manager wallet must be authenticated to sign governance decisions.');
+      return;
+    }
+
+    if (!isManagerAuthorized) {
+      setErrorMessage(
+        'Connected wallet does not possess on-chain Supply Chain Manager authorization (Category 0x02).'
+      );
+      return;
+    }
+
+    setIsExecuting(true);
+
     try {
+      // 2. Fetch on-chain plan to verify existence and check self-approval rule
+      let onChain = null;
+      try {
+        onChain = await blockchainApi.getOnChainPlan(plan.id, 1);
+      } catch (e) {
+        // If not anchored yet, alert honestly
+        throw new Error(`Plan ${plan.id} V1 has not been anchored on-chain yet by the Operations Analyst.`);
+      }
+
+      // Role Governance Rule: Analyst cannot approve their own plan
+      if (
+        onChain.creator &&
+        walletAddress.toLowerCase() === onChain.creator.toLowerCase()
+      ) {
+        throw new Error(
+          'Role Governance Violation: The creator of the plan cannot approve their own plan. An independent manager wallet is required.'
+        );
+      }
+
+      // 3. Prepare transaction based on decision mode
+      let prepTx;
+      let funcName = '';
+      const isLocal = chainId === 31337;
+
       if (decisionMode === 'approve') {
-        managerService.approvePlan({
-          planId: plan.id,
-          decision: 'approved',
-          actor: 'David Vance (Supply Chain Manager)',
-          role: 'Supply Chain Manager',
-          comments: approvalComments,
-        });
-        setDecisionCompleted(true);
+        funcName = 'approvePlan';
+        prepTx = ContractEncoder.encodeApprovePlan(plan.id, 1, 0x02, isLocal);
       } else if (decisionMode === 'reject') {
         if (!rejectionReason.trim()) {
-          setErrorMessage('Please provide a mandatory reason for plan rejection.');
-          return;
+          throw new Error('Please provide a mandatory reason for plan rejection.');
         }
-        managerService.rejectPlan({
-          planId: plan.id,
-          decision: 'rejected',
-          actor: 'David Vance (Supply Chain Manager)',
-          role: 'Supply Chain Manager',
-          reason: rejectionReason,
-          comments: rejectionComments,
-        });
-        setDecisionCompleted(true);
+        funcName = 'rejectPlan';
+        const reasonHash = ContractEncoder.hashString(rejectionReason);
+        prepTx = ContractEncoder.encodeRejectPlan(plan.id, 1, reasonHash, isLocal);
       } else if (decisionMode === 'changes') {
         if (!changeRequirements.trim()) {
-          setErrorMessage('Please specify required modifications before returning to analyst.');
-          return;
+          throw new Error('Please specify required modifications before returning to analyst.');
         }
-        managerService.requestPlanChanges({
-          planId: plan.id,
-          decision: 'changes_requested',
-          actor: 'David Vance (Supply Chain Manager)',
-          role: 'Supply Chain Manager',
-          changeRequirements,
-        });
-        setDecisionCompleted(true);
+        funcName = 'requestRevision';
+        const reasonHash = ContractEncoder.hashString(changeRequirements);
+        prepTx = ContractEncoder.encodeRequestRevision(plan.id, 1, reasonHash, isLocal);
+      }
+
+      if (!prepTx) {
+        throw new Error('Invalid decision mode.');
+      }
+
+      // 4. Submit through external wallet
+      const sendRes = await sendPreparedTransaction(prepTx, {
+        planId: plan.id,
+        planVersion: 1,
+      });
+
+      if (sendRes.txHash) {
+        const txRecord = await blockchainApi.getTransactionStatus(sendRes.txHash);
+        setActiveTx(txRecord);
+      } else {
+        setShowManualTx(true);
+        Alert.alert(
+          'Sign in External Wallet',
+          'Transaction prepared. After confirming in MetaMask, paste the broadcasted transaction hash to register.'
+        );
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to execute decision.');
+      setErrorMessage(err?.message || 'Failed to execute governance transaction.');
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
+  const handleRegisterManualTx = async () => {
+    if (!manualTxHash.trim()) {
+      Alert.alert('Missing Tx Hash', 'Please enter the transaction hash from MetaMask.');
+      return;
+    }
+
+    try {
+      const funcName =
+        decisionMode === 'approve'
+          ? 'approvePlan'
+          : decisionMode === 'reject'
+          ? 'rejectPlan'
+          : 'requestRevision';
+
+      const tx = await registerTransaction(manualTxHash.trim(), funcName, plan.id, 1);
+      setActiveTx(tx);
+      setShowManualTx(false);
+      setManualTxHash('');
+      Alert.alert('Tracking Active', 'Decision transaction registered with backend indexer.');
+    } catch (err: any) {
+      Alert.alert('Registration Error', err?.message || 'Invalid transaction hash.');
     }
   };
 
@@ -115,17 +269,19 @@ export default function ApprovalDecisionScreen() {
               {decisionMode === 'approve'
                 ? 'Recovery Plan Formally Authorized'
                 : decisionMode === 'reject'
-                ? 'Recovery Plan Rejected'
-                : 'Revision Notice Sent to Analyst'}
+                ? 'Recovery Plan Rejected On-Chain'
+                : 'Revision Requested On-Chain'}
             </Text>
 
             <Text style={styles.successDesc}>
               {decisionMode === 'approve'
-                ? `Plan ${plan.id} has been authorized and dispatched to Carlos Mendez (WH-BLR) and BlueDart Logistics. Audit transaction logged.`
+                ? `Plan ${plan.id} has been authorized on the blockchain. Transaction hash: ${activeTx?.tx_hash?.slice(0, 14)}...`
                 : decisionMode === 'reject'
-                ? `Plan ${plan.id} has been rejected. Mandatory reason recorded on audit trail.`
-                : `Plan ${plan.id} has been returned to Anishwath with your change requirements.`}
+                ? `Plan ${plan.id} rejection has been recorded on-chain with hashed rationale.`
+                : `Plan ${plan.id} revision notice has been committed to the smart contract.`}
             </Text>
+
+            {activeTx && <TransactionStatusCard transaction={activeTx} />}
 
             <View style={styles.successButtonsRow}>
               <Pressable
@@ -145,6 +301,9 @@ export default function ApprovalDecisionScreen() {
           </View>
         ) : (
           <>
+            {/* Wallet Authentication Card for Manager */}
+            <WalletConnectionCard requiredRole="supply-chain-manager" />
+
             {/* Segmented Mode Selector */}
             <View style={styles.modeTabs}>
               <Pressable
@@ -186,6 +345,35 @@ export default function ApprovalDecisionScreen() {
               </View>
             )}
 
+            {/* Active Transaction Status */}
+            {activeTx && <TransactionStatusCard transaction={activeTx} />}
+
+            {/* Manual Tx Hash Input */}
+            {showManualTx && (
+              <View style={styles.manualTxCard}>
+                <Text style={styles.manualTxTitle}>Register Broadcasted Transaction</Text>
+                <Text style={styles.manualTxSub}>
+                  Enter the transaction hash returned by MetaMask after signing:
+                </Text>
+                <TextInput
+                  style={styles.txInput}
+                  placeholder="0x..."
+                  placeholderTextColor="#94A3B8"
+                  value={manualTxHash}
+                  onChangeText={setManualTxHash}
+                  autoCapitalize="none"
+                />
+                <View style={styles.manualTxBtnRow}>
+                  <Pressable onPress={() => setShowManualTx(false)} style={styles.cancelBtn}>
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </Pressable>
+                  <Pressable onPress={handleRegisterManualTx} style={styles.confirmTxBtn}>
+                    <Text style={styles.confirmTxBtnText}>Track Transaction</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
             {/* Plan Baseline Review */}
             <View style={styles.summaryCard}>
               <View style={styles.summaryTop}>
@@ -224,13 +412,13 @@ export default function ApprovalDecisionScreen() {
                 <View style={styles.consequencesCard}>
                   <Text style={styles.consequencesTitle}>Operational Consequences of Approval:</Text>
                   <Text style={styles.consequenceItem}>
-                    1. Dispatches formal pick-and-pack order to Carlos Mendez (WH-BLR) for 280 units of PRD-012.
+                    1. Emits on-chain PlanApproved event with Stage 1 sign-off.
                   </Text>
                   <Text style={styles.consequenceItem}>
                     2. Enlists BlueDart Priority Courier for road transit corridor (Lead time: 14 hours).
                   </Text>
                   <Text style={styles.consequenceItem}>
-                    3. Commits immutable transaction on blockchain ledger under actor David Vance.
+                    3. Commits immutable transaction on blockchain ledger under authorized manager wallet.
                   </Text>
                 </View>
               </View>
@@ -251,14 +439,14 @@ export default function ApprovalDecisionScreen() {
                   placeholderTextColor="#94A3B8"
                 />
 
-                <Text style={styles.inputLabel}>Supporting Executive Comments (Optional)</Text>
+                <Text style={styles.formCardTitle}>Additional Analyst Guidance (Optional)</Text>
                 <TextInput
                   style={styles.textArea}
                   multiline
                   numberOfLines={3}
                   value={rejectionComments}
                   onChangeText={setRejectionComments}
-                  placeholder="Add additional guidance for the operations team..."
+                  placeholder="Provide recommendations for alternative recovery formulation..."
                   placeholderTextColor="#94A3B8"
                 />
               </View>
@@ -266,9 +454,9 @@ export default function ApprovalDecisionScreen() {
 
             {decisionMode === 'changes' && (
               <View style={styles.formCard}>
-                <Text style={styles.formCardTitle}>Specific Modification Requirements *</Text>
+                <Text style={styles.formCardTitle}>Required Plan Modifications *</Text>
                 <Text style={styles.formCardSubtitle}>
-                  Document the revisions the Operations Analyst must incorporate before resubmission.
+                  Specify parameter changes required prior to formal governance authorization.
                 </Text>
 
                 <TextInput
@@ -277,13 +465,13 @@ export default function ApprovalDecisionScreen() {
                   numberOfLines={4}
                   value={changeRequirements}
                   onChangeText={setChangeRequirements}
-                  placeholder="e.g. Re-evaluate using WH-HYD instead of WH-BLR to reduce road freight cost by 25%..."
+                  placeholder="Specify required supplier changes, routing constraints or budget caps..."
                   placeholderTextColor="#94A3B8"
                 />
               </View>
             )}
 
-            {/* Execute Button */}
+            {/* Execute Governance Decision Button */}
             <Pressable
               style={[
                 styles.executeBtn,
@@ -292,16 +480,25 @@ export default function ApprovalDecisionScreen() {
                   : decisionMode === 'reject'
                   ? styles.executeBtnReject
                   : styles.executeBtnChanges,
+                isExecuting && { opacity: 0.7 },
               ]}
               onPress={handleExecuteDecision}
+              disabled={isExecuting}
             >
-              <Text style={styles.executeBtnText}>
-                {decisionMode === 'approve'
-                  ? 'Confirm Formal Plan Authorization'
-                  : decisionMode === 'reject'
-                  ? 'Confirm Plan Rejection'
-                  : 'Return to Analyst for Revision'}
-              </Text>
+              {isExecuting ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Lock size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.executeBtnText}>
+                    {decisionMode === 'approve'
+                      ? 'Submit On-Chain Approval'
+                      : decisionMode === 'reject'
+                      ? 'Submit On-Chain Rejection'
+                      : 'Submit On-Chain Revision Request'}
+                  </Text>
+                </>
+              )}
             </Pressable>
           </>
         )}
@@ -322,15 +519,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 40,
+    gap: 14,
   },
   modeTabs: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 4,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#E6EAF1',
+    backgroundColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 3,
     gap: 4,
   },
   modeTab: {
@@ -338,8 +533,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 9,
+    borderRadius: 9,
     gap: 5,
   },
   modeTabApprove: {
@@ -354,33 +549,30 @@ const styles = StyleSheet.create({
   modeTabText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#475569',
   },
   modeTabTextActive: {
     color: '#FFFFFF',
-    fontWeight: '800',
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: '#FECACA',
     borderRadius: 10,
     padding: 10,
-    marginBottom: 12,
   },
   errorText: {
     fontSize: 12,
     color: '#DC2626',
-    fontWeight: '600',
     flex: 1,
+    lineHeight: 16,
   },
   summaryCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#E6EAF1',
   },
@@ -391,24 +583,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   summaryPlanId: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0D9488',
-  },
-  summaryPlanName: {
     fontSize: 14,
     fontWeight: '800',
     color: '#10234D',
-    marginTop: 2,
+  },
+  summaryPlanName: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 1,
   },
   summaryCost: {
-    fontSize: 16,
-    fontWeight: '900',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#10234D',
   },
   summaryMetaRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
     paddingTop: 8,
@@ -419,78 +610,76 @@ const styles = StyleSheet.create({
   },
   formCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 16,
-    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E6EAF1',
   },
   formCardTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#10234D',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   formCardSubtitle: {
     fontSize: 11,
     color: '#64748B',
-    marginBottom: 12,
     lineHeight: 15,
+    marginBottom: 10,
   },
   input: {
     backgroundColor: '#F8FAFC',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 13,
-    color: '#10234D',
-  },
-  inputLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    marginBottom: 6,
+    fontSize: 12,
+    color: '#1E293B',
   },
   textArea: {
     backgroundColor: '#F8FAFC',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#10234D',
+    padding: 12,
+    fontSize: 12,
+    color: '#1E293B',
     textAlignVertical: 'top',
     minHeight: 80,
-    marginBottom: 12,
   },
   consequencesCard: {
     backgroundColor: '#F0FDFA',
     borderRadius: 10,
     padding: 12,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: '#CCFBF1',
-    gap: 6,
   },
   consequencesTitle: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#0D9488',
-    marginBottom: 2,
+    fontWeight: '700',
+    color: '#0F766E',
+    marginBottom: 6,
   },
   consequenceItem: {
     fontSize: 11,
-    color: '#0F766E',
-    lineHeight: 15,
+    color: '#134E4A',
+    lineHeight: 16,
+    marginBottom: 4,
   },
   executeBtn: {
-    borderRadius: 12,
-    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 14,
     marginTop: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   },
   executeBtnApprove: {
     backgroundColor: '#0D9488',
@@ -502,18 +691,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#475569',
   },
   executeBtnText: {
-    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
+    color: '#FFFFFF',
   },
   successCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 18,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E6EAF1',
-    marginTop: 20,
+    borderColor: '#BBF7D0',
   },
   successIconCircle: {
     width: 64,
@@ -523,50 +711,105 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    borderWidth: 2,
-    borderColor: '#DCFCE7',
   },
   successTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '900',
     color: '#10234D',
     textAlign: 'center',
     marginBottom: 8,
   },
   successDesc: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 18,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   successButtonsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
     width: '100%',
+    marginTop: 12,
   },
   successSecondaryBtn: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#F1F5F9',
     borderRadius: 10,
     paddingVertical: 12,
-    alignItems: 'center',
   },
   successSecondaryBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#10234D',
+    color: '#475569',
   },
   successPrimaryBtn: {
-    flex: 1.2,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#0D9488',
     borderRadius: 10,
     paddingVertical: 12,
-    alignItems: 'center',
   },
   successPrimaryBtnText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  manualTxCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    marginBottom: 10,
+  },
+  manualTxTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  manualTxSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginBottom: 10,
+  },
+  txInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 11,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    marginBottom: 10,
+  },
+  manualTxBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  cancelBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  cancelBtnText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  confirmTxBtn: {
+    backgroundColor: '#0D9488',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  confirmTxBtnText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 });
