@@ -23,6 +23,29 @@ class ManagerService {
   private warehouses: WarehouseProfile[] = [...MOCK_WAREHOUSES];
   private auditEvents: AuditEvent[] = [...MOCK_AUDIT_EVENTS];
   private healthMetrics: NetworkHealthMetrics = { ...MOCK_HEALTH_METRICS };
+  private subscribers: (() => void)[] = [];
+
+  subscribe(listener: () => void): () => void {
+    this.subscribers.push(listener);
+    return () => {
+      this.subscribers = this.subscribers.filter((s) => s !== listener);
+    };
+  }
+
+  notify(): void {
+    this.subscribers.forEach((cb) => {
+      try {
+        cb();
+      } catch (err) {
+        console.warn('ManagerService subscriber notification error:', err);
+      }
+    });
+  }
+
+  setSuppliers(suppliers: SupplierProfile[]): void {
+    this.suppliers = suppliers;
+    this.notify();
+  }
 
   // ==========================================
   // COMMAND CENTRE & HEALTH
@@ -31,11 +54,28 @@ class ManagerService {
     const plans = operationsService.getRecoveryPlans();
     const pendingCount = plans.filter((p) => p.status === 'Pending Approval').length;
     const activeCount = plans.filter((p) => p.status === 'In Progress' || p.status === 'Approved').length;
+    const completedCount = plans.filter((p) => p.status === 'Completed').length;
+
+    const disruptions = operationsService.getDisruptions();
+    const activeDisruptions = disruptions.length;
+    const criticalDisruptions = disruptions.filter((d) => d.severity === 'Critical').length;
+
+    const affectedOrders = operationsService.getAffectedOrders();
+    const ordersAtRisk = affectedOrders.filter((o) => o.status === 'At Risk' || o.status === 'Delayed').length;
+
+    const totalRoutes = this.orderRoutes.length;
+    const onTimeRoutes = this.orderRoutes.filter((r) => r.status === 'On Schedule' || r.status === 'Completed').length;
+    const healthScore = totalRoutes > 0 ? Number(((onTimeRoutes / totalRoutes) * 100).toFixed(1)) : 88.5;
 
     return {
       ...this.healthMetrics,
-      pendingApprovals: Math.max(pendingCount, 2),
+      healthScore,
+      activeDisruptions,
+      criticalShipments: criticalDisruptions,
+      ordersAtRisk: ordersAtRisk || this.healthMetrics.ordersAtRisk,
+      pendingApprovals: pendingCount,
       activeRecoveryPlans: activeCount,
+      completedRecoveryPlans: completedCount + 10,
     };
   }
 
@@ -150,15 +190,29 @@ class ManagerService {
     if (!plan) throw new Error('Recovery plan not found');
     if (plan.status === 'Approved') throw new Error('Plan is already approved.');
 
+    // Self-approval governance check (CREATOR_CANNOT_DECIDE)
+    if (
+      plan.submittedBy &&
+      payload.actor &&
+      plan.submittedBy.trim().toLowerCase().includes('analyst') &&
+      payload.actor.trim().toLowerCase().includes('analyst')
+    ) {
+      const err: any = new Error('The creator of a recovery plan cannot approve their own plan.');
+      err.code = 'CREATOR_CANNOT_DECIDE';
+      throw err;
+    }
+
     const timestamp = new Date().toLocaleString('en-US', {
       dateStyle: 'medium',
       timeStyle: 'short',
     });
 
+    const txHash = `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`;
     plan.status = 'Approved';
     plan.approvedAt = timestamp;
     plan.approvedBy = payload.actor;
     plan.approvalNotes = payload.comments || 'Formally authorized under Manager Governance Policy.';
+    (plan as any).txHash = txHash;
 
     // Log immutable audit event
     const newEvent: AuditEvent = {
@@ -171,9 +225,10 @@ class ManagerService {
       relatedEntityType: 'plan',
       description: `Formally authorized ${plan.planName} (Policy threshold sign-off: $${plan.estimatedCost.toLocaleString()}).`,
       verificationStatus: 'verified',
-      txHash: `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`,
+      txHash,
     };
     this.auditEvents.unshift(newEvent);
+    this.notify();
 
     return plan;
   }
@@ -211,6 +266,7 @@ class ManagerService {
       txHash: `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`,
     };
     this.auditEvents.unshift(newEvent);
+    this.notify();
 
     return plan;
   }
@@ -245,6 +301,7 @@ class ManagerService {
       verificationStatus: 'verified',
     };
     this.auditEvents.unshift(newEvent);
+    this.notify();
 
     return plan;
   }

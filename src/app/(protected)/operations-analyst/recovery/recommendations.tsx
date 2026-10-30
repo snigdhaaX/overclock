@@ -35,7 +35,7 @@ export default function RecoveryRecommendationsScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <OperationsHeader
         title="Recovery Strategies"
-        subtitle="AI generated mitigation & rerouting alternatives"
+        subtitle="Rule-checked recovery recommendations & rerouting options"
         rightAction={
           <Pressable
             onPress={() => router.push('/(protected)/operations-analyst/recovery/create')}
@@ -63,7 +63,7 @@ export default function RecoveryRecommendationsScreen() {
           style={[styles.tabBtn, activeTab === 'ai' && styles.tabBtnActive]}
         >
           <Text style={[styles.tabText, activeTab === 'ai' && styles.tabTextActive]}>
-            AI Optimal
+            Optimal Scenario
           </Text>
         </Pressable>
 
@@ -81,7 +81,7 @@ export default function RecoveryRecommendationsScreen() {
       <View style={styles.noticeBanner}>
         <Info size={16} color="#2563EB" style={{ marginRight: 8, marginTop: 1 }} />
         <Text style={styles.noticeText}>
-          AI models formulate mathematical optimization recommendations. Formal plan activation requires review and submit for authorised manager approval.
+          Rule-checked recovery options are formulated and ranked by operational risk. Formal plan activation requires review and submit for authorized manager approval.
         </Text>
       </View>
 

@@ -28,9 +28,12 @@ import SeverityBadge from '@/features/operations-analyst/components/SeverityBadg
 import StatusBadge from '@/features/operations-analyst/components/StatusBadge';
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
 import managerService from '@/features/supply-chain-manager/services/managerService';
+import ChainProof from '@/components/ChainProof';
+import useSyncVersion from '@/hooks/useSyncVersion';
 
 export default function RecoveryExecutionDetailScreen() {
   const router = useRouter();
+  const syncVersion = useSyncVersion();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const plan =
@@ -42,10 +45,10 @@ export default function RecoveryExecutionDetailScreen() {
       id: 'm-1',
       title: 'Plan Approved & Blockchain Logged',
       role: 'Supply Chain Manager',
-      actor: 'David Vance',
+      actor: 'The Supply Chain Manager',
       status: 'completed',
       time: '24 Oct 2026, 09:15 AM',
-      details: 'Formally authorized under Policy RP-POL-04. Immutable audit transaction #0x9f88c committed.',
+      details: 'Formally authorized under Policy RP-POL-04. Immutable audit transaction committed to ledger.',
     },
     {
       id: 'm-2',
@@ -124,7 +127,7 @@ export default function RecoveryExecutionDetailScreen() {
           <View style={styles.authPill}>
             <ShieldCheck size={14} color="#0D9488" style={{ marginRight: 6 }} />
             <Text style={styles.authPillText}>
-              Authorized by: <Text style={{ fontWeight: '800' }}>David Vance (Supply Chain Manager)</Text>
+              Authorized by: <Text style={{ fontWeight: '800' }}>{plan.approvedBy || 'The Supply Chain Manager'}</Text>
             </Text>
           </View>
         </View>
@@ -182,6 +185,9 @@ export default function RecoveryExecutionDetailScreen() {
             })}
           </View>
         </View>
+
+        {/* Cryptographic Ledger Proof */}
+        <ChainProof planId={plan.id} txHash={(plan as any).txHash} />
 
         {/* Action Buttons */}
         <View style={styles.actionButtonsRow}>

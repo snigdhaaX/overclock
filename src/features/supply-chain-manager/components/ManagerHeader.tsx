@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
-import { Bell, ChevronLeft, Settings, ShieldCheck } from 'lucide-react-native';
+import { Bell, ChevronLeft, LogOut, ShieldCheck } from 'lucide-react-native';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import BrandLogo from '../../../components/BrandLogo';
+import useAuth from '../../../hooks/useAuth';
 
 interface ManagerHeaderProps {
   title?: string;
@@ -22,6 +23,7 @@ export const ManagerHeader: React.FC<ManagerHeaderProps> = ({
   greeting,
 }) => {
   const router = useRouter();
+  const { logout, user } = useAuth();
 
   const handleBack = () => {
     if (onBack) {
@@ -30,6 +32,44 @@ export const ManagerHeader: React.FC<ManagerHeaderProps> = ({
       router.back();
     }
   };
+
+  const handleSignOut = () => {
+    if (Platform.OS === 'web') {
+      const ok = typeof window !== 'undefined' && window.confirm
+        ? window.confirm('Are you sure you want to terminate your active Supply Chain Manager session?')
+        : true;
+      if (ok) {
+        logout().then(() => {
+          router.replace('/(public)/signin');
+        });
+      }
+      return;
+    }
+    Alert.alert(
+      'Sign Out of TRUSTCHAIN',
+      'Are you sure you want to terminate your active Supply Chain Manager session?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(public)/signin');
+          },
+        },
+      ]
+    );
+  };
+
+  const avatarInitials = user?.name
+    ? user.name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : 'DV';
 
   return (
     <View style={styles.headerContainer}>
@@ -60,6 +100,7 @@ export const ManagerHeader: React.FC<ManagerHeaderProps> = ({
             onPress={() => router.push('/(protected)/supply-chain-manager/profile' as any)}
             style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
             hitSlop={8}
+            accessibilityLabel="Notifications"
           >
             <Bell size={20} color="#10234D" />
             <View style={styles.badgeDot}>
@@ -71,18 +112,21 @@ export const ManagerHeader: React.FC<ManagerHeaderProps> = ({
           <Pressable
             onPress={() => router.push('/(protected)/supply-chain-manager/profile' as any)}
             style={styles.avatarButton}
+            accessibilityLabel="Profile"
           >
             <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>DV</Text>
+              <Text style={styles.avatarText}>{avatarInitials}</Text>
             </View>
           </Pressable>
 
-          {/* Settings Shortcut */}
+          {/* Direct Sign Out Button */}
           <Pressable
-            onPress={() => router.push('/(protected)/supply-chain-manager/profile' as any)}
-            style={({ pressed }) => [styles.settingsButton, pressed && styles.iconButtonPressed]}
+            onPress={handleSignOut}
+            style={({ pressed }) => [styles.settingsButton, styles.logoutButton, pressed && styles.iconButtonPressed]}
+            hitSlop={8}
+            accessibilityLabel="Sign out"
           >
-            <Settings size={18} color="#64748B" />
+            <LogOut size={16} color="#DC2626" />
           </Pressable>
         </View>
       </View>
@@ -191,6 +235,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  logoutButton: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
   titleSection: {
     marginTop: 10,

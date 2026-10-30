@@ -203,7 +203,7 @@ export default function ImpactAnalysisScreen() {
           style={({ pressed }) => [styles.actionButton, pressed && styles.btnPressed]}
         >
           <Sparkles size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-          <Text style={styles.actionButtonText}>Generate AI Recovery Strategies</Text>
+          <Text style={styles.actionButtonText}>Generate Recovery Scenarios</Text>
         </Pressable>
       </View>
     </SafeAreaView>

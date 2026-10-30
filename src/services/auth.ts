@@ -161,10 +161,30 @@ class AuthService {
     const tokens = await TokenStorage.getTokens();
     const user = await TokenStorage.getUser();
     if (tokens && user) {
+      // Check 2-hour session expiration
+      if (tokens.expiresAt && Date.now() > tokens.expiresAt) {
+        console.warn('[AuthService] Stored token has expired (>2h). Clearing session.');
+        await TokenStorage.clear();
+        this.currentSession = null;
+        return null;
+      }
       this.currentSession = { user, tokens };
       return this.currentSession;
     }
     return null;
+  }
+
+  isSessionExpired(): boolean {
+    if (!this.currentSession) return true;
+    const { tokens } = this.currentSession;
+    if (tokens.expiresAt && Date.now() > tokens.expiresAt) {
+      return true;
+    }
+    return false;
+  }
+
+  async handleSessionExpired(): Promise<void> {
+    await this.logout();
   }
 
   getCurrentSession(): AuthSession | null {
@@ -236,11 +256,14 @@ class AuthService {
       throw err;
     }
 
-    // Generate simulated cryptographic JWT tokens
+    // Generate simulated cryptographic JWT tokens (2-hour expiry)
+    const now = Date.now();
     const tokens: AuthTokens = {
-      accessToken: `tc_jwt_acc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-      refreshToken: `tc_jwt_ref_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-      expiresIn: 3600,
+      accessToken: `tc_jwt_acc_${now}_${Math.random().toString(36).substring(2, 9)}`,
+      refreshToken: `tc_jwt_ref_${now}_${Math.random().toString(36).substring(2, 9)}`,
+      expiresIn: 7200,
+      issuedAt: now,
+      expiresAt: now + 7200 * 1000,
     };
 
     const session: AuthSession = {

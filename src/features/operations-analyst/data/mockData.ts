@@ -308,7 +308,7 @@ export const MOCK_RECOVERY_PLANS: RecoveryPlan[] = [
   {
     id: 'RP-001',
     planName: 'Plan A — Stock Transfer from WH-BLR',
-    recommendationLabel: 'AI Recommended (Optimal)',
+    recommendationLabel: 'Rule-Checked (Optimal)',
     strategy: 'Transfer 280 units from existing reserve at Bangalore warehouse to protect EduTech Pvt Ltd SLA commitment.',
     relatedDisruptionId: 'SHP-101',
     estimatedCost: 14200,

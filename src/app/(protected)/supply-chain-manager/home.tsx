@@ -39,14 +39,25 @@ import ManagerBottomNav from '@/features/supply-chain-manager/components/Manager
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
 import ManagerMetricCard from '@/features/supply-chain-manager/components/ManagerMetricCard';
 import managerService from '@/features/supply-chain-manager/services/managerService';
+import operationsService from '@/features/operations-analyst/services/operationsService';
+import useSyncVersion from '@/hooks/useSyncVersion';
+import useAuth from '@/hooks/useAuth';
 
 export default function ManagerHomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const syncVersion = useSyncVersion();
   const [refreshing, setRefreshing] = useState(false);
 
   const health = managerService.getHealthMetrics();
   const criticalDisruption = managerService.getDisruptionById('SHP-101');
   const pendingPlans = managerService.getRecoveryPlans('pending');
+
+  // Derive actual affected orders & calculated exposure from live operational data
+  const affectedOrders = operationsService.getAffectedOrders();
+  const ordersAtRiskList = affectedOrders.filter((o) => o.status === 'At Risk' || o.status === 'Delayed');
+  const actualExposure = ordersAtRiskList.reduce((sum, o) => sum + (o.revenue || 0), 0);
+  const ordersAtRiskSubtitle = actualExposure > 0 ? `$${actualExposure.toLocaleString()} at risk` : `${health.ordersAtRisk} orders flagged`;
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -56,7 +67,7 @@ export default function ManagerHomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <ManagerHeader
-        greeting="Good morning, David"
+        greeting={user?.name ? `Good morning, ${user.name.split(' ')[0]}` : 'Good morning, Manager'}
         title="Command Centre"
         subtitle="Network-wide logistics intelligence & executive decision hub"
       />
@@ -77,8 +88,10 @@ export default function ManagerHomeScreen() {
               <View style={styles.healthScoreRow}>
                 <Text style={styles.healthScoreValue}>{health.healthScore}%</Text>
                 <View style={styles.healthStatusPill}>
-                  <TrendingUp size={12} color="#16A36A" style={{ marginRight: 3 }} />
-                  <Text style={styles.healthStatusText}>Optimal Operations</Text>
+                  <Activity size={12} color="#16A36A" style={{ marginRight: 3 }} />
+                  <Text style={styles.healthStatusText}>
+                    {health.healthScore >= 90 ? 'Network Monitored' : 'Attention Required'}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -97,7 +110,7 @@ export default function ManagerHomeScreen() {
             <ManagerMetricCard
               title="Active Disruptions"
               value={health.activeDisruptions}
-              subtitle="2 high impact"
+              subtitle={`${health.criticalShipments} critical`}
               icon={<AlertTriangle size={14} color="#DC2626" />}
               accentColor="#DC2626"
             />
@@ -114,14 +127,14 @@ export default function ManagerHomeScreen() {
             <ManagerMetricCard
               title="Orders at Risk"
               value={health.ordersAtRisk}
-              subtitle="$342,000 exposure"
+              subtitle={ordersAtRiskSubtitle}
               icon={<Package size={14} color="#2563EB" />}
               accentColor="#2563EB"
             />
             <ManagerMetricCard
               title="Pending Approvals"
               value={health.pendingApprovals}
-              subtitle="Require authorization"
+              subtitle={health.pendingApprovals > 0 ? `${health.pendingApprovals} require review` : 'All cleared'}
               icon={<CheckCircle2 size={14} color="#0D9488" />}
               accentColor="#0D9488"
             />
@@ -188,7 +201,7 @@ export default function ManagerHomeScreen() {
           <Pressable
             onPress={() => router.push('/(protected)/supply-chain-manager/disruptions' as any)}
           >
-            <Text style={styles.seeAllText}>View All (4)</Text>
+            <Text style={styles.seeAllText}>View All ({health.activeDisruptions})</Text>
           </Pressable>
         </View>
 
@@ -247,7 +260,7 @@ export default function ManagerHomeScreen() {
           <Pressable
             onPress={() => router.push('/(protected)/supply-chain-manager/approvals' as any)}
           >
-            <Text style={styles.seeAllText}>Review (3)</Text>
+            <Text style={styles.seeAllText}>Review ({health.pendingApprovals})</Text>
           </Pressable>
         </View>
 

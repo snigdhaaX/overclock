@@ -91,7 +91,16 @@ export const SupplierCard: React.FC<SupplierCardProps> = ({ supplier, onPress })
 
         <View style={styles.metricCell}>
           <Text style={styles.metricLabel}>Delivery SLA</Text>
-          <Text style={styles.metricValue}>{supplier.deliveryPerformance}%</Text>
+          <Text
+            style={[
+              styles.metricValue,
+              supplier.deliveryPerformance == null && { fontSize: 10, color: '#64748B', fontWeight: '600' },
+            ]}
+          >
+            {supplier.deliveryPerformance != null
+              ? `${supplier.deliveryPerformance}%`
+              : 'Not enough history'}
+          </Text>
         </View>
 
         <View style={styles.metricCell}>

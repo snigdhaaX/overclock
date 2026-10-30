@@ -9,7 +9,7 @@ import {
   ShieldAlert,
   X,
 } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -24,14 +24,41 @@ import ManagerBottomNav from '../../../../features/supply-chain-manager/componen
 import ManagerHeader from '../../../../features/supply-chain-manager/components/ManagerHeader';
 import { SupplierCard } from '../../../../features/supply-chain-manager/components/SupplierCard';
 import managerService from '../../../../features/supply-chain-manager/services/managerService';
+import backendSync from '@/services/backendSync';
+import useSyncVersion from '@/hooks/useSyncVersion';
 import { SupplierProfile } from '../../../../features/supply-chain-manager/types';
 
 export default function SupplierOverviewScreen() {
   const router = useRouter();
+  const syncVersion = useSyncVersion();
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [sortBy, setSortBy] = useState<'risk' | 'sla' | 'spend'>('risk');
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loadLiveSuppliers = async () => {
+    try {
+      const live = await backendSync.fetchSuppliers();
+      if (live && live.length > 0) {
+        managerService.setSuppliers(live);
+      }
+    } catch (err: any) {
+      console.warn('[Suppliers] Live sync fallback to local cache:', err?.message || err);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLiveSuppliers();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadLiveSuppliers();
+  };
 
   const statusOptions = ['All', 'Active', 'At Risk', 'Critical', 'Under Review'];
 
@@ -42,15 +69,14 @@ export default function SupplierOverviewScreen() {
 
   const sortedSuppliers = [...rawSuppliers].sort((a, b) => {
     if (sortBy === 'risk') return b.riskScore - a.riskScore;
-    if (sortBy === 'sla') return b.deliveryPerformance - a.deliveryPerformance;
+    if (sortBy === 'sla') {
+      const aVal = a.deliveryPerformance ?? -1;
+      const bVal = b.deliveryPerformance ?? -1;
+      return bVal - aVal;
+    }
     if (sortBy === 'spend') return b.spendYTD.localeCompare(a.spendYTD);
     return 0;
   });
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 500);
-  };
 
   const totalCount = sortedSuppliers.length;
   const criticalCount = sortedSuppliers.filter((s) => s.status === 'Critical' || s.status === 'At Risk').length;

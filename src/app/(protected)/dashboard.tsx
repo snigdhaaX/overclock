@@ -64,12 +64,12 @@ export default function DashboardScreen() {
       case 'operations-analyst':
         return [
           { label: 'Active Disruptions', value: '14', change: '+2 today', icon: <AlertTriangle size={20} color={Colors.warning} /> },
-          { label: 'AI Recovery Plans', value: '3 Ready', change: '94% Confidence', icon: <Zap size={20} color={Colors.primary} /> },
-          { label: 'Telemetry Stream', value: '99.8%', change: 'Real-time AIS', icon: <Activity size={20} color={Colors.success} /> },
+          { label: 'Recovery Scenarios', value: '3 Ready', change: 'Risk-Ranked', icon: <Zap size={20} color={Colors.primary} /> },
+          { label: 'Telemetry Stream', value: '99.8%', change: 'Active Fleet Feed', icon: <Activity size={20} color={Colors.success} /> },
         ];
       case 'supply-chain-manager':
         return [
-          { label: 'Pending Approvals', value: '4 Plans', change: 'Urgent response', icon: <CheckCircle size={20} color="#0D9488" /> },
+          { label: 'Pending Approvals', value: '4 Plans', change: 'Governance review', icon: <CheckCircle size={20} color="#0D9488" /> },
           { label: 'Trade Corridors', value: '8 Active', change: 'Pacific / Atlantic', icon: <Globe size={20} color={Colors.primary} /> },
           { label: 'Blockchain Audit', value: '100% Synced', change: 'Verified blocks', icon: <ShieldCheck size={20} color={Colors.success} /> },
         ];
@@ -82,14 +82,14 @@ export default function DashboardScreen() {
       case 'procurement-approver':
         return [
           { label: 'Contracts Under Review', value: '$2.4M', change: '3 vendors', icon: <FileText size={20} color="#9333EA" /> },
-          { label: 'Alternate Suppliers', value: '12 Validated', change: 'Risk rating A+', icon: <ShoppingCart size={20} color={Colors.primary} /> },
-          { label: 'Cost Optimization', value: '-14.8%', change: 'AI renegotiated', icon: <Zap size={20} color={Colors.success} /> },
+          { label: 'Alternate Suppliers', value: '12 Validated', change: 'Risk-evaluated', icon: <ShoppingCart size={20} color={Colors.primary} /> },
+          { label: 'Cost Optimization', value: '-14.8%', change: 'Budget Evaluated', icon: <Zap size={20} color={Colors.success} /> },
         ];
       case 'administrator':
         return [
           { label: 'Enterprise Users', value: '48 Active', change: '5 roles', icon: <Users size={20} color="#1E293B" /> },
-          { label: 'RBAC Security Policies', value: '16 Enforced', change: 'Argon2 / JWT', icon: <Shield size={20} color={Colors.primary} /> },
-          { label: 'Compliance Audit', value: 'SOC2 / ISO', change: 'Compliant', icon: <ShieldCheck size={20} color={Colors.success} /> },
+          { label: 'RBAC Security Policies', value: '16 Enforced', change: 'Role-checked', icon: <Shield size={20} color={Colors.primary} /> },
+          { label: 'Cryptographic Audit', value: 'On-Chain Ledger', change: 'Immutable', icon: <ShieldCheck size={20} color={Colors.success} /> },
         ];
       default:
         return [];
@@ -157,34 +157,6 @@ export default function DashboardScreen() {
             <Text style={styles.metricChange}>{m.change}</Text>
           </View>
         ))}
-      </View>
-
-      {/* Quick Role Switcher for easy testing of all 5 role experiences */}
-      <View style={styles.switcherSection}>
-        <Text style={styles.switcherHeader}>Explore Other Role Portals</Text>
-        <Text style={styles.switcherSub}>
-          Click below to test any of the 5 specialized authentication experiences:
-        </Text>
-
-        <View style={styles.roleButtonsList}>
-          {(Object.keys(ROLES) as UserRole[]).map((rk) => {
-            const r = ROLES[rk];
-            return (
-              <Pressable
-                key={rk}
-                onPress={() => router.push(r.route as any)}
-                style={({ pressed }) => [
-                  styles.roleButton,
-                  pressed && styles.roleButtonPressed,
-                ]}
-              >
-                <View style={[styles.roleDotSmall, { backgroundColor: r.badgeColor }]} />
-                <Text style={styles.roleButtonText}>{r.title}</Text>
-                <ArrowRight size={14} color={Colors.textSecondary} />
-              </Pressable>
-            );
-          })}
-        </View>
       </View>
 
       {/* Sign Out CTA */}

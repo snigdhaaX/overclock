@@ -9,6 +9,7 @@ import {
   Globe2,
   Home,
   LayoutDashboard,
+  LogOut,
   MoreHorizontal,
   PieChart,
   RotateCcw,
@@ -20,8 +21,9 @@ import {
   X,
 } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useAuth from '../../../hooks/useAuth';
 
 export type ManagerTab = 'overview' | 'network' | 'disruptions' | 'approvals' | 'more';
 
@@ -32,7 +34,38 @@ interface ManagerBottomNavProps {
 export const ManagerBottomNav: React.FC<ManagerBottomNavProps> = ({ activeTab }) => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { logout } = useAuth();
   const [moreVisible, setMoreVisible] = useState(false);
+
+  const handleSignOut = () => {
+    setMoreVisible(false);
+    if (Platform.OS === 'web') {
+      const ok = typeof window !== 'undefined' && window.confirm
+        ? window.confirm('Are you sure you want to terminate your active Supply Chain Manager session?')
+        : true;
+      if (ok) {
+        logout().then(() => {
+          router.replace('/(public)/signin');
+        });
+      }
+      return;
+    }
+    Alert.alert(
+      'Sign Out of TRUSTCHAIN',
+      'Are you sure you want to terminate your active Supply Chain Manager session?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(public)/signin');
+          },
+        },
+      ]
+    );
+  };
 
   const handleTabPress = (tab: ManagerTab) => {
     if (tab === 'overview') {
@@ -239,7 +272,11 @@ export const ManagerBottomNav: React.FC<ManagerBottomNavProps> = ({ activeTab })
               </Pressable>
             </View>
 
-            <View style={styles.moreList}>
+            <ScrollView
+              style={styles.moreScroll}
+              contentContainerStyle={styles.moreList}
+              showsVerticalScrollIndicator={false}
+            >
               {moreItems.map((item, index) => {
                 const Icon = item.icon;
                 return (
@@ -265,7 +302,32 @@ export const ManagerBottomNav: React.FC<ManagerBottomNavProps> = ({ activeTab })
                   </Pressable>
                 );
               })}
-            </View>
+
+              {/* Divider */}
+              <View style={styles.moreDivider} />
+
+              {/* Direct Sign Out Button */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.signOutItem,
+                  pressed && styles.signOutItemPressed,
+                ]}
+                onPress={handleSignOut}
+              >
+                <View style={[styles.moreItemIcon, { backgroundColor: '#FEE2E2' }]}>
+                  <LogOut size={18} color="#DC2626" />
+                </View>
+                <View style={styles.moreItemTexts}>
+                  <Text style={[styles.moreItemTitle, { color: '#DC2626', fontWeight: '800' }]}>
+                    Sign Out Session
+                  </Text>
+                  <Text style={styles.moreItemSubtitle}>
+                    Exit Supply Chain Manager and return to sign in
+                  </Text>
+                </View>
+                <ChevronRight size={16} color="#DC2626" />
+              </Pressable>
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -358,8 +420,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  moreScroll: {
+    maxHeight: 460,
+  },
   moreList: {
     gap: 10,
+    paddingBottom: 16,
   },
   moreItem: {
     flexDirection: 'row',
@@ -373,6 +439,24 @@ const styles = StyleSheet.create({
   },
   moreItemPressed: {
     backgroundColor: '#F1F5F9',
+  },
+  moreDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 4,
+  },
+  signOutItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  signOutItemPressed: {
+    backgroundColor: '#FEE2E2',
   },
   moreItemIcon: {
     width: 36,

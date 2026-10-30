@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   AlertCircle,
   AlertTriangle,
@@ -38,8 +38,12 @@ import managerService from '@/features/supply-chain-manager/services/managerServ
 
 export default function AlternativeSupplierComparisonScreen() {
   const router = useRouter();
+  const { planId } = useLocalSearchParams<{ planId?: string }>();
   const [modalVisible, setModalVisible] = useState(false);
   const [decisionConfirmed, setDecisionConfirmed] = useState(false);
+
+  // Check if an actual associated recovery plan exists
+  const associatedPlan = planId ? managerService.getRecoveryPlanById(planId) : undefined;
 
   // Demonstration Data specified by requirements
   const comparisonData = {
@@ -139,7 +143,9 @@ export default function AlternativeSupplierComparisonScreen() {
     setDecisionConfirmed(true);
     setTimeout(() => {
       setModalVisible(false);
-      router.push('/(protected)/supply-chain-manager/approvals/RP-001' as any);
+      if (associatedPlan) {
+        router.push(`/(protected)/supply-chain-manager/approvals/${associatedPlan.id}` as any);
+      }
     }, 1200);
   };
 
@@ -369,7 +375,9 @@ export default function AlternativeSupplierComparisonScreen() {
                 <CheckCircle2 size={44} color="#16A36A" style={{ marginBottom: 12 }} />
                 <Text style={styles.successStateTitle}>Sourcing Proposal Created</Text>
                 <Text style={styles.successStateDesc}>
-                  Decision logged to Cryptographic Audit Trail (EVT-9042). Redirecting to Recovery Plan RP-001...
+                  {associatedPlan
+                    ? `Proposal recorded in audit trail. Redirecting to ${associatedPlan.id}...`
+                    : 'Sourcing proposal recorded in cryptographic audit register.'}
                 </Text>
               </View>
             ) : (

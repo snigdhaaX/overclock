@@ -31,12 +31,37 @@ import SeverityBadge from '@/features/operations-analyst/components/SeverityBadg
 import StatusBadge from '@/features/operations-analyst/components/StatusBadge';
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
 import managerService from '@/features/supply-chain-manager/services/managerService';
+import ChainProof from '@/components/ChainProof';
+import useSyncVersion from '@/hooks/useSyncVersion';
 
 export default function RecoveryPlanReviewScreen() {
   const router = useRouter();
+  const syncVersion = useSyncVersion();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const plan = managerService.getRecoveryPlanById(id || 'RP-001') || managerService.getRecoveryPlanById('RP-001')!;
+  const foundPlan = id ? managerService.getRecoveryPlanById(id) : undefined;
+  const plan = foundPlan || managerService.getRecoveryPlans()[0];
+
+  if (!plan) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <ManagerHeader
+          title="Plan Not Found"
+          subtitle="No recovery plan found matching this reference."
+          showBack={true}
+          onBack={() => router.back()}
+        />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#10234D', marginBottom: 8 }}>
+            Recovery Plan Unavailable
+          </Text>
+          <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center' }}>
+            The requested plan reference does not exist or has been archived.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -166,6 +191,9 @@ export default function RecoveryPlanReviewScreen() {
             </View>
           ))}
         </View>
+
+        {/* Cryptographic Proof Card */}
+        <ChainProof planId={plan.id} txHash={(plan as any).txHash} />
 
         {/* Governance Decisions Disclaimer */}
         <View style={styles.governanceNotice}>

@@ -23,10 +23,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
 import managerService from '@/features/supply-chain-manager/services/managerService';
+import backendSync from '@/services/backendSync';
+import useAuth from '@/hooks/useAuth';
 
 export default function ApprovalDecisionScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
+
+  const currentActor = user?.name ? `${user.name} (${user.assignedRole === 'operations-analyst' ? 'Operations Analyst' : 'Supply Chain Manager'})` : 'The Supply Chain Manager';
 
   const [decisionMode, setDecisionMode] = useState<'approve' | 'reject' | 'changes'>(
     (mode as any) || 'approve'
@@ -44,15 +49,29 @@ export default function ApprovalDecisionScreen() {
     managerService.getRecoveryPlanById(id || 'RP-001') ||
     managerService.getRecoveryPlanById('RP-001')!;
 
-  const handleExecuteDecision = () => {
+  const handleExecuteDecision = async () => {
     setErrorMessage('');
 
     try {
       if (decisionMode === 'approve') {
+        try {
+          await backendSync.approvePlan({
+            planId: plan.id,
+            actor: currentActor,
+            role: 'Supply Chain Manager',
+            comments: approvalComments,
+          });
+        } catch (backendErr: any) {
+          if (backendErr?.code === 'CREATOR_CANNOT_DECIDE' || backendErr?.message?.includes('CREATOR_CANNOT_DECIDE')) {
+            throw backendErr;
+          }
+          console.warn('[Decision] Backend sync failed, applying local governance check:', backendErr?.message);
+        }
+
         managerService.approvePlan({
           planId: plan.id,
           decision: 'approved',
-          actor: 'David Vance (Supply Chain Manager)',
+          actor: currentActor,
           role: 'Supply Chain Manager',
           comments: approvalComments,
         });
@@ -62,10 +81,22 @@ export default function ApprovalDecisionScreen() {
           setErrorMessage('Please provide a mandatory reason for plan rejection.');
           return;
         }
+        try {
+          await backendSync.rejectPlan({
+            planId: plan.id,
+            actor: currentActor,
+            role: 'Supply Chain Manager',
+            reason: rejectionReason,
+            comments: rejectionComments,
+          });
+        } catch (backendErr) {
+          console.warn('[Decision] Backend sync reject failed, continuing local:', backendErr);
+        }
+
         managerService.rejectPlan({
           planId: plan.id,
           decision: 'rejected',
-          actor: 'David Vance (Supply Chain Manager)',
+          actor: currentActor,
           role: 'Supply Chain Manager',
           reason: rejectionReason,
           comments: rejectionComments,
@@ -79,14 +110,20 @@ export default function ApprovalDecisionScreen() {
         managerService.requestPlanChanges({
           planId: plan.id,
           decision: 'changes_requested',
-          actor: 'David Vance (Supply Chain Manager)',
+          actor: currentActor,
           role: 'Supply Chain Manager',
           changeRequirements,
         });
         setDecisionCompleted(true);
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to execute decision.');
+      if (err?.code === 'CREATOR_CANNOT_DECIDE' || err?.message?.includes('CREATOR_CANNOT_DECIDE')) {
+        setErrorMessage(
+          'Governance Rule Violation (CREATOR_CANNOT_DECIDE): The creator of a recovery plan cannot approve their own plan. A separate authorized manager must review and sign off.'
+        );
+      } else {
+        setErrorMessage(err?.message || 'Failed to execute decision.');
+      }
     }
   };
 
@@ -230,7 +267,7 @@ export default function ApprovalDecisionScreen() {
                     2. Enlists BlueDart Priority Courier for road transit corridor (Lead time: 14 hours).
                   </Text>
                   <Text style={styles.consequenceItem}>
-                    3. Commits immutable transaction on blockchain ledger under actor David Vance.
+                    3. Commits immutable transaction on blockchain ledger under actor: The Supply Chain Manager.
                   </Text>
                 </View>
               </View>

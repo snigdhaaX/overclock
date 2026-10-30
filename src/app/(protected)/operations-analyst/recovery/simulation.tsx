@@ -49,7 +49,7 @@ export default function SimulationResultsScreen() {
   const handleSubmitForApproval = () => {
     Alert.alert(
       'Submit for Manager Approval',
-      `Are you sure you want to dispatch "${plan.planName}" to Supply Chain Manager David Vance for formal authorization?`,
+      `Are you sure you want to dispatch "${plan.planName}" to the Supply Chain Manager for formal authorization?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -153,7 +153,7 @@ export default function SimulationResultsScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.successNoticeTitle}>Submitted to Manager</Text>
                 <Text style={styles.successNoticeSub}>
-                  Plan state updated to &quot;Pending Approval&quot;. Dispatched to Supply Chain Manager David Vance for review.
+                  Plan state updated to &quot;Pending Approval&quot;. Dispatched to the Supply Chain Manager for review.
                 </Text>
               </View>
             </View>

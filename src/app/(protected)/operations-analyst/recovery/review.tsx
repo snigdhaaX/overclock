@@ -43,7 +43,7 @@ export default function PlanReviewAndSubmitScreen() {
   const handleSubmit = () => {
     Alert.alert(
       'Submit Plan for Formal Authorization',
-      `Submit "${plan.planName}" ($${plan.estimatedCost.toLocaleString()}) to Supply Chain Manager David Vance for governance approval?`,
+      `Submit "${plan.planName}" ($${plan.estimatedCost.toLocaleString()}) to the Supply Chain Manager for governance approval?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -111,7 +111,7 @@ export default function PlanReviewAndSubmitScreen() {
                 Status: <Text style={{ fontWeight: '700' }}>Pending Approval</Text> • Submitted today at {plan.submittedAt || '11:45 AM'}
               </Text>
               <Text style={styles.bannerDetail}>
-                Assigned to: Supply Chain Manager (David Vance). An automated notification and blockchain audit hash have been generated.
+                Assigned to: The Supply Chain Manager. An automated notification and blockchain audit hash have been generated.
               </Text>
             </View>
           </View>

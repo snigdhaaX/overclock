@@ -3,6 +3,7 @@ import {
   AlertCircle,
   AlertTriangle,
   Bell,
+  BellOff,
   CheckCheck,
   ChevronRight,
   FileCheck,
@@ -19,10 +20,11 @@ import {
   Truck,
   User,
 } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -32,7 +34,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ManagerBottomNav from '../../../features/supply-chain-manager/components/ManagerBottomNav';
 import ManagerHeader from '../../../features/supply-chain-manager/components/ManagerHeader';
+import operationsService from '@/features/operations-analyst/services/operationsService';
 import useAuth from '../../../hooks/useAuth';
+import useSyncVersion from '@/hooks/useSyncVersion';
 
 interface NotificationItem {
   id: string;
@@ -45,66 +49,53 @@ interface NotificationItem {
   targetRoute: string;
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'NOTIF-01',
-    type: 'approval',
-    title: 'Urgent Approval: RP-001 (Microcontrollers)',
-    description: 'Lead Analyst Priya Sharma submitted recovery plan for SHP-101 Chennai delay.',
-    timestamp: '12m ago',
-    isRead: false,
-    priority: 'critical',
-    targetRoute: '/(protected)/supply-chain-manager/approvals/RP-001',
-  },
-  {
-    id: 'NOTIF-02',
-    type: 'disruption',
-    title: 'New Disruption: Sanand Chassis Shortage',
-    description: 'Precision Components Fab reported stamping tooling recalibration delay.',
-    timestamp: '45m ago',
-    isRead: false,
-    priority: 'high',
-    targetRoute: '/(protected)/supply-chain-manager/disruptions/DIS-002',
-  },
-  {
-    id: 'NOTIF-03',
-    type: 'recovery',
-    title: 'Milestone Dispatched: RP-002 Stage 2',
-    description: 'Intra-depot stock transfer of 280 units en route to Nhava Sheva depot.',
-    timestamp: '1h ago',
-    isRead: false,
-    priority: 'normal',
-    targetRoute: '/(protected)/supply-chain-manager/recovery/RP-002',
-  },
-  {
-    id: 'NOTIF-04',
-    type: 'approval',
-    title: 'Policy Escalation Sign-Off: RP-003',
-    description: 'Supplier rerouting plan exceeding $50k requires executive manager authorization.',
-    timestamp: '3h ago',
-    isRead: true,
-    priority: 'high',
-    targetRoute: '/(protected)/supply-chain-manager/approvals/RP-003',
-  },
-];
-
 export default function ProfileAndNotificationsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const syncVersion = useSyncVersion();
   const [activeTab, setActiveTab] = useState<'profile' | 'notifications'>('profile');
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [selectedNotifFilter, setSelectedNotifFilter] = useState<string>('all');
+
+  const rawNotifs = operationsService.getNotifications();
+  const notifications: NotificationItem[] = rawNotifs.map((n) => {
+    let targetRoute = '/(protected)/supply-chain-manager/home';
+    if (n.type === 'approval') {
+      targetRoute = n.relatedEntityId
+        ? `/(protected)/supply-chain-manager/approvals/${n.relatedEntityId}`
+        : '/(protected)/supply-chain-manager/approvals';
+    } else if (n.type === 'disruption') {
+      targetRoute = n.relatedEntityId
+        ? `/(protected)/supply-chain-manager/disruptions/${n.relatedEntityId}`
+        : '/(protected)/supply-chain-manager/disruptions';
+    } else {
+      targetRoute = n.relatedEntityId
+        ? `/(protected)/supply-chain-manager/recovery/${n.relatedEntityId}`
+        : '/(protected)/supply-chain-manager/recovery';
+    }
+
+    const notifType: 'approval' | 'disruption' | 'recovery' =
+      n.type === 'approval' || n.type === 'disruption' ? n.type : 'recovery';
+
+    return {
+      id: n.id,
+      type: notifType,
+      title: n.title,
+      description: n.description,
+      timestamp: n.timestamp,
+      isRead: n.isRead,
+      priority: n.severity === 'Critical' ? 'critical' : n.severity === 'High' ? 'high' : 'normal',
+      targetRoute,
+    };
+  });
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    operationsService.markAllNotificationsAsRead();
   };
 
   const markAsRead = (id: string, targetRoute?: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
+    operationsService.markNotificationAsRead(id);
     if (targetRoute) {
       router.push(targetRoute as any);
     }
@@ -120,6 +111,17 @@ export default function ProfileAndNotificationsScreen() {
   });
 
   const handleSignOut = () => {
+    if (Platform.OS === 'web') {
+      const ok = typeof window !== 'undefined' && window.confirm
+        ? window.confirm('Are you sure you want to terminate your active Supply Chain Manager session?')
+        : true;
+      if (ok) {
+        logout().then(() => {
+          router.replace('/(public)/signin');
+        });
+      }
+      return;
+    }
     Alert.alert(
       'Sign Out of TRUSTCHAIN',
       'Are you sure you want to terminate your active Supply Chain Manager session?',
@@ -130,7 +132,7 @@ export default function ProfileAndNotificationsScreen() {
           style: 'destructive',
           onPress: async () => {
             await logout();
-            router.replace('/(auth)/supply-chain-manager');
+            router.replace('/(public)/signin');
           },
         },
       ]
@@ -187,21 +189,30 @@ export default function ProfileAndNotificationsScreen() {
           <View style={styles.profileCard}>
             <View style={styles.avatarRow}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>DV</Text>
+                <Text style={styles.avatarText}>
+                  {user?.name
+                    ? user.name
+                        .split(' ')
+                        .map((n) => n[0])
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase()
+                    : 'SC'}
+                </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.managerName}>David Vance</Text>
+                <Text style={styles.managerName}>{user?.name || 'Supply Chain Manager'}</Text>
                 <View style={styles.roleTag}>
                   <Text style={styles.roleTagText}>Supply Chain Manager</Text>
                 </View>
-                <Text style={styles.orgText}>TRUSTCHAIN Global Enterprise</Text>
+                <Text style={styles.orgText}>{user?.organization || 'TRUSTCHAIN Global Hub'}</Text>
               </View>
             </View>
 
             <View style={styles.detailGrid}>
               <View style={styles.detailItem}>
                 <Mail size={13} color="#64748B" style={{ marginRight: 6 }} />
-                <Text style={styles.detailValue}>david.vance@trustchain.com</Text>
+                <Text style={styles.detailValue}>{user?.email || 'manager@trustchain.com'}</Text>
               </View>
               <View style={styles.detailItem}>
                 <ShieldCheck size={13} color="#16A36A" style={{ marginRight: 6 }} />
@@ -312,7 +323,7 @@ export default function ProfileAndNotificationsScreen() {
               </View>
               <View style={styles.settingTextGroup}>
                 <Text style={styles.settingTitle}>About TRUSTCHAIN Enterprise</Text>
-                <Text style={styles.settingSubtitle}>Version 3.4.0 (Phase 3 Build) · SOC-2 Type II</Text>
+                <Text style={styles.settingSubtitle}>Version 3.4.0 (Phase 3 Build) · Multi-Signature Policy Enforced</Text>
               </View>
               <ChevronRight size={16} color="#94A3B8" />
             </Pressable>
@@ -323,6 +334,8 @@ export default function ProfileAndNotificationsScreen() {
             <LogOut size={16} color="#DC2626" style={{ marginRight: 8 }} />
             <Text style={styles.signOutText}>Sign Out Securely</Text>
           </Pressable>
+
+          <View style={{ height: 110 }} />
         </ScrollView>
       ) : (
         <View style={styles.notifContainer}>
@@ -370,6 +383,17 @@ export default function ProfileAndNotificationsScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.notifList}
             showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyStateBox}>
+                <BellOff size={36} color="#94A3B8" style={{ marginBottom: 12 }} />
+                <Text style={styles.emptyStateTitle}>No Notifications</Text>
+                <Text style={styles.emptyStateDesc}>
+                  {selectedNotifFilter === 'all'
+                    ? 'No operational alerts or approval requests at this time.'
+                    : `No ${selectedNotifFilter} alerts matching this filter.`}
+                </Text>
+              </View>
+            }
             renderItem={({ item }) => {
               const isCrit = item.priority === 'critical';
               return (
@@ -464,7 +488,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     gap: 16,
-    paddingBottom: 32,
+    paddingBottom: 130,
   },
   profileCard: {
     backgroundColor: '#FFFFFF',
@@ -701,5 +725,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#0D9488',
+  },
+  emptyStateBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+  },
+  emptyStateTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#10234D',
+    marginBottom: 6,
+  },
+  emptyStateDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

@@ -28,12 +28,21 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
+import operationsService from '@/features/operations-analyst/services/operationsService';
+import useSyncVersion from '@/hooks/useSyncVersion';
 
 export default function ReportsAnalyticsScreen() {
   const router = useRouter();
+  const syncVersion = useSyncVersion();
   const [activeTab, setActiveTab] = useState<
     'On-Time Delivery Performance' | 'Disruption Trends' | 'Recovery Performance'
   >('On-Time Delivery Performance');
+
+  const allPlans = operationsService.getRecoveryPlans();
+  const pendingPlans = allPlans.filter((p) => p.status === 'Pending Approval');
+  const rejectedPlans = allPlans.filter((p) => p.status === 'Rejected');
+  const completedPlans = allPlans.filter((p) => p.status === 'Completed' || p.status === 'Approved');
+  const recoveryRate = allPlans.length > 0 ? ((completedPlans.length / allPlans.length) * 100).toFixed(1) : '91.4';
 
   const tabs: Array<'On-Time Delivery Performance' | 'Disruption Trends' | 'Recovery Performance'> = [
     'On-Time Delivery Performance',
@@ -355,14 +364,14 @@ export default function ReportsAnalyticsScreen() {
             <View style={styles.kpiRow}>
               <View style={[styles.kpiCard, { borderTopColor: '#0D9488', borderTopWidth: 3 }]}>
                 <Text style={styles.kpiLabel}>Recovery Rate</Text>
-                <Text style={[styles.kpiVal, { color: '#0D9488' }]}>94.2%</Text>
+                <Text style={[styles.kpiVal, { color: '#0D9488' }]}>{recoveryRate}%</Text>
                 <Text style={styles.kpiSub}>Target: &gt;90%</Text>
               </View>
 
               <View style={[styles.kpiCard, { borderTopColor: '#16A36A', borderTopWidth: 3 }]}>
                 <Text style={styles.kpiLabel}>Recovered Plans</Text>
-                <Text style={[styles.kpiVal, { color: '#16A36A' }]}>16 / 17</Text>
-                <Text style={styles.kpiSub}>Formulated plans</Text>
+                <Text style={[styles.kpiVal, { color: '#16A36A' }]}>{completedPlans.length} / {allPlans.length}</Text>
+                <Text style={styles.kpiSub}>Active portfolio</Text>
               </View>
 
               <View style={[styles.kpiCard, { borderTopColor: '#2563EB', borderTopWidth: 3 }]}>
@@ -379,14 +388,26 @@ export default function ReportsAnalyticsScreen() {
               <View style={styles.statusBoxRow}>
                 <View style={styles.statusBox}>
                   <Text style={styles.statusBoxLabel}>Pending Approvals</Text>
-                  <Text style={[styles.statusBoxVal, { color: '#D97706' }]}>2 Plans</Text>
-                  <Text style={styles.statusBoxSub}>RP-001, RP-002 awaiting sign-off</Text>
+                  <Text style={[styles.statusBoxVal, { color: '#D97706' }]}>
+                    {pendingPlans.length} {pendingPlans.length === 1 ? 'Plan' : 'Plans'}
+                  </Text>
+                  <Text style={styles.statusBoxSub}>
+                    {pendingPlans.length > 0
+                      ? `${pendingPlans.map((p) => p.id).join(', ')} awaiting sign-off`
+                      : 'No plans awaiting sign-off'}
+                  </Text>
                 </View>
 
                 <View style={styles.statusBox}>
                   <Text style={styles.statusBoxLabel}>Blocked / Rejected</Text>
-                  <Text style={[styles.statusBoxVal, { color: '#16A36A' }]}>0 Blocked</Text>
-                  <Text style={styles.statusBoxSub}>Zero operational deadlocks</Text>
+                  <Text style={[styles.statusBoxVal, { color: rejectedPlans.length > 0 ? '#DC2626' : '#16A36A' }]}>
+                    {rejectedPlans.length} Blocked
+                  </Text>
+                  <Text style={styles.statusBoxSub}>
+                    {rejectedPlans.length > 0
+                      ? `${rejectedPlans.map((p) => p.id).join(', ')} flagged`
+                      : 'Zero operational deadlocks'}
+                  </Text>
                 </View>
               </View>
             </View>

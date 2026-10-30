@@ -207,7 +207,7 @@ export default function SupplierDetailsScreen() {
                 <Text style={styles.detailLabel}>Qualification Status</Text>
                 <View style={styles.qualPillApproved}>
                   <CheckCircle2 size={11} color="#16A36A" style={{ marginRight: 4 }} />
-                  <Text style={styles.qualPillText}>Approved (ISO-9001 / IATF-16949)</Text>
+                  <Text style={styles.qualPillText}>Approved Supplier Qualification</Text>
                 </View>
               </View>
 
@@ -352,8 +352,21 @@ export default function SupplierDetailsScreen() {
               <View style={styles.kpiRow}>
                 <View style={styles.kpiBox}>
                   <Text style={styles.kpiLabel}>On-Time Delivery</Text>
-                  <Text style={[styles.kpiVal, { color: supplier.deliveryPerformance >= 90 ? '#16A36A' : '#D97706' }]}>
-                    {supplier.deliveryPerformance}%
+                  <Text
+                    style={[
+                      styles.kpiVal,
+                      {
+                        color:
+                          supplier.deliveryPerformance != null && supplier.deliveryPerformance >= 90
+                            ? '#16A36A'
+                            : '#D97706',
+                        fontSize: supplier.deliveryPerformance == null ? 12 : 16,
+                      },
+                    ]}
+                  >
+                    {supplier.deliveryPerformance != null
+                      ? `${supplier.deliveryPerformance}%`
+                      : 'Not enough history'}
                   </Text>
                   <Text style={styles.kpiSub}>Target: 95.0%</Text>
                 </View>

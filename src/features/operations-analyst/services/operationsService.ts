@@ -25,6 +25,24 @@ class OperationsService {
   private recoveryPlans: RecoveryPlan[] = [...MOCK_RECOVERY_PLANS];
   private notifications: NotificationItem[] = [...MOCK_NOTIFICATIONS];
   private executionData: ExecutionTrackingData = { ...MOCK_EXECUTION_DATA };
+  private subscribers: (() => void)[] = [];
+
+  subscribe(listener: () => void): () => void {
+    this.subscribers.push(listener);
+    return () => {
+      this.subscribers = this.subscribers.filter((s) => s !== listener);
+    };
+  }
+
+  notify(): void {
+    this.subscribers.forEach((cb) => {
+      try {
+        cb();
+      } catch (err) {
+        console.warn('OperationsService subscriber notification error:', err);
+      }
+    });
+  }
 
   // DISRUPTIONS
   getDisruptions(params?: {
@@ -133,6 +151,10 @@ class OperationsService {
     return this.orders.find((o) => o.id === id);
   }
 
+  getAffectedOrders(disruptionId?: string): AffectedOrder[] {
+    return this.getOrders({ disruptionId });
+  }
+
   // RECOVERY PLANS
   getRecoveryPlans(filter?: 'all' | 'ai' | 'alternative' | 'custom'): RecoveryPlan[] {
     if (!filter || filter === 'all') return [...this.recoveryPlans];
@@ -209,15 +231,15 @@ class OperationsService {
       dateStyle: 'medium',
       timeStyle: 'short',
     });
-    plan.submittedBy = 'Anishwath (Operations Analyst)';
-    plan.assignedApprover = 'David Vance (Supply Chain Manager)';
-    plan.approvalNotes = 'Awaiting formal authorization from Supply Chain Manager before execution activation.';
+    plan.submittedBy = 'Operations Analyst';
+    plan.assignedApprover = 'The Supply Chain Manager';
+    plan.approvalNotes = 'Awaiting formal authorization from the Supply Chain Manager before execution activation.';
     
     // Add notification about submission
     this.notifications.unshift({
       id: `notif-${Date.now()}`,
       title: `Plan Submitted: ${plan.planName}`,
-      description: `Dispatched to David Vance (Supply Chain Manager) for formal approval.`,
+      description: `Dispatched to the Supply Chain Manager for formal approval.`,
       timestamp: 'Just now',
       severity: 'Medium',
       isRead: false,
@@ -226,6 +248,7 @@ class OperationsService {
       relatedEntityType: 'plan',
     });
 
+    this.notify();
     return plan;
   }
 
