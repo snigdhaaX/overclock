@@ -50,7 +50,7 @@ export default function SupplierDetailsScreen() {
         <View style={styles.errorContainer}>
           <ShieldAlert size={48} color="#DC2626" />
           <Text style={styles.errorTitle}>Supplier Not Found</Text>
-          <Text style={styles.errorSubtitle}>Vendor profile "{id}" could not be located in registry.</Text>
+          <Text style={styles.errorSubtitle}>Vendor profile &quot;{id}&quot; could not be located in registry.</Text>
           <Pressable style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backBtnText}>Return to Suppliers</Text>
           </Pressable>

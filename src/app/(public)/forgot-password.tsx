@@ -52,7 +52,7 @@ export default function ForgotPasswordScreen() {
         </View>
         <Text style={styles.heading}>Reset your password</Text>
         <Text style={styles.subtitle}>
-          Enter your enterprise work email and we'll transmit a secure recovery link.
+          Enter your enterprise work email and we&apos;ll transmit a secure recovery link.
         </Text>
       </View>
 

@@ -153,7 +153,7 @@ export default function SimulationResultsScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.successNoticeTitle}>Submitted to Manager</Text>
                 <Text style={styles.successNoticeSub}>
-                  Plan state updated to "Pending Approval". Dispatched to Supply Chain Manager David Vance for review.
+                  Plan state updated to &quot;Pending Approval&quot;. Dispatched to Supply Chain Manager David Vance for review.
                 </Text>
               </View>
             </View>

@@ -14,6 +14,8 @@ export default function ProtectedLayout() {
       <Stack.Screen name="operations-analyst" />
       <Stack.Screen name="supply-chain-manager" />
       <Stack.Screen name="warehouse-operator" />
+      <Stack.Screen name="procurement-approver" />
+      <Stack.Screen name="administrator" />
     </Stack>
   );
 }

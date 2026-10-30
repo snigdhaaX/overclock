@@ -3,24 +3,29 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 interface QuantityStepperProps {
+  label?: string;
   value: number;
   onChange: (value: number) => void;
   min?: number;
   max?: number;
   step?: number;
+  unit?: string;
   unitLabel?: string;
   disabled?: boolean;
 }
 
 export const QuantityStepper: React.FC<QuantityStepperProps> = ({
+  label,
   value,
   onChange,
   min = 0,
   max = 99999,
   step = 1,
+  unit,
   unitLabel = 'units',
   disabled = false,
 }) => {
+  const effectiveUnit = unit || unitLabel;
   const handleDecrement = () => {
     if (disabled || value <= min) return;
     onChange(Math.max(min, value - step));
@@ -44,7 +49,7 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
     }
   };
 
-  return (
+  const stepperMarkup = (
     <View style={styles.container}>
       <Pressable
         style={[styles.stepButton, (disabled || value <= min) && styles.disabledButton]}
@@ -63,7 +68,7 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
           editable={!disabled}
           selectTextOnFocus
         />
-        {unitLabel ? <Text style={styles.unitText}>{unitLabel}</Text> : null}
+        {effectiveUnit ? <Text style={styles.unitText}>{effectiveUnit}</Text> : null}
       </View>
 
       <Pressable
@@ -75,9 +80,29 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
       </Pressable>
     </View>
   );
+
+  if (label) {
+    return (
+      <View style={styles.wrapper}>
+        <Text style={styles.label}>{label}</Text>
+        {stepperMarkup}
+      </View>
+    );
+  }
+
+  return stepperMarkup;
 };
 
 const styles = StyleSheet.create({
+  wrapper: {
+    marginBottom: 6,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#10234D',
+    marginBottom: 6,
+  },
   container: {
     flexDirection: 'row',
     alignItems: 'center',

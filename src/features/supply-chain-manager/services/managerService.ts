@@ -328,6 +328,10 @@ class ManagerService {
 
     return result;
   }
+
+  addAuditEvent(event: AuditEvent): void {
+    this.auditEvents.unshift(event);
+  }
 }
 
 export const managerService = new ManagerService();
