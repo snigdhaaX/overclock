@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 from backend.app.blockchain.database import Base, get_db
+from backend.app.blockchain.database import create_all_tables, drop_all_tables
 from backend.app.main import app
 from backend.app.risk import importers, service, synthetic, training
 
@@ -16,7 +17,7 @@ NON_FEATURES = ("missed_deadline", "outcome_at")
 def db(tmp_path, monkeypatch):
     monkeypatch.setenv("TRUSTCHAIN_RISK_MODEL_DIR", str(tmp_path))
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
-    Base.metadata.create_all(engine)
+    create_all_tables(engine)
     session = sessionmaker(bind=engine)()
     yield session
     session.close()

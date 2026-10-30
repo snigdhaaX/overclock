@@ -38,7 +38,9 @@ class CarrierEventIn(BaseModel):
 
 @router.post("/webhooks/carriers/simulated")
 def carrier_webhook(event: CarrierEventIn, x_webhook_secret: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    expected = os.getenv("TRUSTCHAIN_WEBHOOK_SECRET", "demo-carrier-secret")
+    expected = os.getenv("TRUSTCHAIN_WEBHOOK_SECRET")
+    if not expected:
+        raise HTTPException(503, detail={"code": "WEBHOOK_NOT_CONFIGURED", "message": "Set TRUSTCHAIN_WEBHOOK_SECRET on the server."})
     if not x_webhook_secret or not hmac.compare_digest(x_webhook_secret, expected):
         raise HTTPException(401, detail={"code": "UNAUTHENTICATED", "message": "Carrier source couldn't be verified."})
     org = db.query(Organization).filter_by(slug=os.getenv("TRUSTCHAIN_WEBHOOK_ORG", ORG_SLUG)).first()

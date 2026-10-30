@@ -312,7 +312,7 @@ export default function ProfileAndNotificationsScreen() {
               </View>
               <View style={styles.settingTextGroup}>
                 <Text style={styles.settingTitle}>About TRUSTCHAIN Enterprise</Text>
-                <Text style={styles.settingSubtitle}>Version 3.4.0 (Phase 3 Build) · SOC-2 Type II</Text>
+                <Text style={styles.settingSubtitle}>Version 3.4.0 (Phase 3 Build)</Text>
               </View>
               <ChevronRight size={16} color="#94A3B8" />
             </Pressable>

@@ -6,6 +6,7 @@ from sqlalchemy.pool import StaticPool
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from backend.app.blockchain.database import Base, WalletNonce, UserWallet
+from backend.app.blockchain.database import create_all_tables, drop_all_tables
 from backend.app.blockchain.wallet_service import (
     WalletService,
     NonceExpiredError,
@@ -22,7 +23,7 @@ def db_session():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine)
+    create_all_tables(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
     try:

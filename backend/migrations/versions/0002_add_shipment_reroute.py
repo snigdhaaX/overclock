@@ -11,7 +11,7 @@ branch_labels = None
 depends_on = None
 
 BASE = "'INVENTORY_REALLOCATION', 'STOCK_TRANSFER', 'SHIPMENT_EXPEDITE', {extra}'ALTERNATIVE_SUPPLIER', 'SPLIT_FULFILMENT', 'PARTIAL_FULFILMENT', 'PROCUREMENT_ADJUSTMENT'"
-NAME = "action_type_valid"
+NAME = "ck_recovery_plan_actions_action_type_valid"
 
 
 def _swap(extra: str) -> None:

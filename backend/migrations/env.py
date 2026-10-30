@@ -3,11 +3,12 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 from backend.app.blockchain.config import settings
 from backend.app.models import Base
+from backend.app.supply_chain.models import Base as SupplyChainBase
 
 if context.config.config_file_name is not None:
     fileConfig(context.config.config_file_name)
 
-target_metadata = Base.metadata
+target_metadata = [Base.metadata, SupplyChainBase.metadata]
 
 
 def database_url() -> str:

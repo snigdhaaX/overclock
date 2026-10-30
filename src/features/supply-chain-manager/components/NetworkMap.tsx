@@ -20,6 +20,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import Constants from 'expo-constants';
 import MapView, { Marker, Polyline, UrlTile } from 'react-native-maps';
 import { OrderRoute, RouteStop } from '../types';
 
@@ -36,6 +37,9 @@ interface NetworkMapProps {
   }) => void;
   filterMode?: 'all' | 'critical' | 'delayed' | 'in_transit';
 }
+
+// Google Maps crashes natively on Android when it has no API key, so check before rendering it.
+const MAP_AVAILABLE = Platform.OS !== 'android' || Boolean((Constants.expoConfig?.android as any)?.config?.googleMaps?.apiKey);
 
 const INITIAL_REGION = {
   latitude: 21.0,
@@ -89,6 +93,17 @@ export const NetworkMap: React.FC<NetworkMapProps> = ({
     if (!mapRef.current) return;
     mapRef.current.animateToRegion(INITIAL_REGION, 500);
   };
+
+  if (!MAP_AVAILABLE) {
+    return (
+      <View style={{ padding: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF6FF', borderRadius: 14, minHeight: 180 }}>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: '#10234D', marginBottom: 4 }}>Map unavailable on this build</Text>
+        <Text style={{ fontSize: 12, lineHeight: 17, color: '#475569', textAlign: 'center' }}>
+          This Android build has no Google Maps key. Routes and shipments are still listed on this screen.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

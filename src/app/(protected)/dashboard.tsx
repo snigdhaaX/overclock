@@ -89,7 +89,7 @@ export default function DashboardScreen() {
         return [
           { label: 'Enterprise Users', value: '48 Active', change: '5 roles', icon: <Users size={20} color="#1E293B" /> },
           { label: 'RBAC Security Policies', value: '16 Enforced', change: 'Argon2 / JWT', icon: <Shield size={20} color={Colors.primary} /> },
-          { label: 'Compliance Audit', value: 'SOC2 / ISO', change: 'Compliant', icon: <ShieldCheck size={20} color={Colors.success} /> },
+          { label: 'Audit Trail', value: 'Hash-chained', change: 'Append-only', icon: <ShieldCheck size={20} color={Colors.success} /> },
         ];
       default:
         return [];

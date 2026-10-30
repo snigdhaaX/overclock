@@ -14,6 +14,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import StaleDataError
 from backend.app.models import Base
+from backend.app.supply_chain.models import Base as SupplyChainBase
 from backend.app.models.governance import AuditEvent, Notification
 from backend.app.models.identity import Organization, Role, User, UserRole
 from backend.app.models.intelligence import Disruption, RiskAssessment
@@ -27,7 +28,7 @@ NOW = datetime.datetime(2026, 10, 30, tzinfo=datetime.timezone.utc)
 NOT_DIRECTLY_SCOPED = {
     "organizations", "permissions", "role_permissions", "user_roles", "sessions", "user_warehouse_assignments",
     # Existing tables that predate this schema and still use string organization ids or none.
-    "user_wallets", "wallet_nonces", "blockchain_transactions", "blockchain_events", "operational_plans",
+    "user_wallets", "wallet_nonces", "wallet_sessions", "blockchain_transactions", "blockchain_events", "operational_plans",
     "risk_exposures", "risk_model_versions",
 }
 
@@ -398,8 +399,8 @@ def test_migration_matches_models_and_can_be_fully_undone(tmp_path):
     command.upgrade(config, "head")
     engine = create_engine(url)
     with engine.connect() as connection:
-        assert set(Base.metadata.tables) <= set(inspect(connection).get_table_names())
-        differences = compare_metadata(MigrationContext.configure(connection, opts={"compare_type": True}), Base.metadata)
+        assert set(Base.metadata.tables) | set(SupplyChainBase.metadata.tables) <= set(inspect(connection).get_table_names())
+        differences = compare_metadata(MigrationContext.configure(connection, opts={"compare_type": True}), [Base.metadata, SupplyChainBase.metadata])
         assert differences == []
     if engine.dialect.name == "postgresql":
         with engine.connect() as connection:

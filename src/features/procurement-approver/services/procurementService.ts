@@ -134,7 +134,8 @@ class ProcurementService {
     }
 
     const timestamp = 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const txHash = `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`;
+    // No hash until this flow really anchors on-chain.
+    const txHash = undefined;
     const poId = `PO-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
     req.status = 'approved';
@@ -269,7 +270,8 @@ class ProcurementService {
     }
 
     const timestamp = 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const txHash = `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`;
+    // No hash until this flow really anchors on-chain.
+    const txHash = undefined;
 
     req.status = 'rejected';
     req.decisionTimestamp = timestamp;

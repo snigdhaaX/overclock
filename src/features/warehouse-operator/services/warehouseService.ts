@@ -264,7 +264,6 @@ class WarehouseService {
       ...payload,
       receivedAt: 'Just now',
       status: payload.damagedQuantity > 0 ? 'discrepancy' : 'confirmed',
-      txHash: `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`,
     };
 
     this.goodsReceipts.unshift(newReceipt);
@@ -350,7 +349,6 @@ class WarehouseService {
       ...payload,
       reportedAt: 'Just now',
       status: 'quarantined',
-      txHash: `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`,
     };
 
     this.damageReports.unshift(newReport);
@@ -427,7 +425,6 @@ class WarehouseService {
       availableQuantity: available,
       status: 'pending_approval',
       requestedAt: 'Just now',
-      txHash: `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`,
     };
 
     this.stockTransfers.unshift(newTransfer);

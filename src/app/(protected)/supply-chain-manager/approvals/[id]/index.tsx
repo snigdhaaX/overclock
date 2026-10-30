@@ -18,25 +18,88 @@ import {
   User,
   XCircle,
 } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SeverityBadge from '@/features/operations-analyst/components/SeverityBadge';
 import StatusBadge from '@/features/operations-analyst/components/StatusBadge';
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
 import managerService from '@/features/supply-chain-manager/services/managerService';
+import { blockchainApi } from '@/services/blockchainApi';
+import { useBlockchainWallet } from '@/hooks/useBlockchainWallet';
+import {
+  WalletConnectionCard,
+  IntegrityVerificationCard,
+  PlanHashCard,
+  EvidenceManifestCard,
+  GovernanceDecisionCard,
+} from '@/components/blockchain';
+import {
+  PlanVerificationReport,
+  PlanDecision,
+  OnChainPlanVersion,
+} from '@/types/blockchain';
 
 export default function RecoveryPlanReviewScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const plan = managerService.getRecoveryPlanById(id || 'RP-001') || managerService.getRecoveryPlanById('RP-001')!;
+  const plan =
+    managerService.getRecoveryPlanById(id || 'RP-001') ||
+    managerService.getRecoveryPlanById('RP-001')!;
+
+  const { isConnected, isManagerAuthorized } = useBlockchainWallet();
+
+  const [verificationReport, setVerificationReport] = useState<PlanVerificationReport | null>(null);
+  const [decisions, setDecisions] = useState<PlanDecision[]>([]);
+  const [onChainPlan, setOnChainPlan] = useState<OnChainPlanVersion | null>(null);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+
+  const loadBlockchainVerification = useCallback(async () => {
+    setLoadingAudit(true);
+    try {
+      // 1. Full 15-point cryptographic integrity check
+      const rep = await blockchainApi.verifyPlanIntegrity(plan.id, 1);
+      setVerificationReport(rep);
+
+      // 2. On-chain decisions history
+      try {
+        const decRes = await blockchainApi.getDecisions(plan.id, 1);
+        setDecisions(decRes.decisions || []);
+      } catch {
+        setDecisions([]);
+      }
+
+      // 3. On-chain plan version
+      try {
+        const chainPlan = await blockchainApi.getOnChainPlan(plan.id, 1);
+        setOnChainPlan(chainPlan);
+      } catch {
+        setOnChainPlan(null);
+      }
+    } catch (err) {
+      console.warn('Error loading plan verification:', err);
+    } finally {
+      setLoadingAudit(false);
+    }
+  }, [plan.id]);
+
+  useEffect(() => {
+    loadBlockchainVerification();
+  }, [loadBlockchainVerification]);
+
+  const isAlreadyDecided =
+    onChainPlan &&
+    (onChainPlan.status === 'APPROVED' ||
+      onChainPlan.status === 'REJECTED' ||
+      onChainPlan.status === 'REVISION_REQUESTED');
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -76,6 +139,37 @@ export default function RecoveryPlanReviewScreen() {
             <Text style={styles.submitterTime}>• {plan.submittedAt || 'Today, 09:12 AM'}</Text>
           </View>
         </View>
+
+        {/* 1. Wallet Authentication for Manager */}
+        <WalletConnectionCard
+          requiredRole="supply-chain-manager"
+          onWalletConnected={() => loadBlockchainVerification()}
+        />
+
+        {/* 2. Cryptographic Integrity Verification Card */}
+        <IntegrityVerificationCard report={verificationReport} loading={loadingAudit} />
+
+        {/* 3. Canonical Plan Hash Card */}
+        {verificationReport && (
+          <PlanHashCard
+            planHash={verificationReport.database_hash}
+            schemaVersion={verificationReport.schema_version}
+            evidenceManifestHash={verificationReport.evidence_manifest_hash}
+            isVerified={verificationReport.hashes_match}
+          />
+        )}
+
+        {/* 4. Evidence Manifest Card */}
+        {verificationReport && (
+          <EvidenceManifestCard
+            manifestRootHash={verificationReport.evidence_manifest_hash}
+            disruptionId={plan.relatedDisruptionId}
+            isAnchored={true}
+          />
+        )}
+
+        {/* 5. On-Chain Decision History */}
+        <GovernanceDecisionCard decisions={decisions} />
 
         {/* Financial & Policy Threshold Summary */}
         <View style={styles.sectionCard}>
@@ -309,7 +403,7 @@ const styles = StyleSheet.create({
   },
   kpiRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
     marginBottom: 12,
   },
   kpiBox: {
@@ -317,9 +411,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: 10,
     padding: 10,
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#EEF2F6',
+    alignItems: 'center',
   },
   kpiBoxLabel: {
     fontSize: 10,
@@ -328,12 +422,12 @@ const styles = StyleSheet.create({
   },
   kpiBoxVal: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
+    marginBottom: 2,
   },
   kpiBoxSub: {
     fontSize: 9,
     color: '#94A3B8',
-    marginTop: 2,
   },
   budgetPolicyBanner: {
     flexDirection: 'row',
@@ -346,8 +440,8 @@ const styles = StyleSheet.create({
   },
   budgetPolicyText: {
     fontSize: 11,
+    color: '#0F766E',
     fontWeight: '600',
-    color: '#0D9488',
   },
   scopeGrid: {
     gap: 8,
@@ -355,7 +449,7 @@ const styles = StyleSheet.create({
   scopeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: 4,
     borderBottomWidth: 1,
     borderBottomColor: '#F8FAFC',
   },
@@ -366,43 +460,45 @@ const styles = StyleSheet.create({
   scopeVal: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#10234D',
+    color: '#1E293B',
   },
   actionCard: {
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: 10,
+    padding: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#EEF2F6',
+    marginBottom: 8,
   },
   actionCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     marginBottom: 4,
+    gap: 8,
   },
   stepNumCircle: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#10234D',
+    backgroundColor: '#2563EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepNumText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     color: '#FFFFFF',
   },
   actionTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
     color: '#10234D',
+    flex: 1,
   },
   actionDesc: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#475569',
+    lineHeight: 15,
     marginBottom: 6,
   },
   actionMetaRow: {
@@ -417,8 +513,8 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   actionMetaCost: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 10,
+    fontWeight: '700',
     color: '#10234D',
   },
   governanceNotice: {
@@ -427,64 +523,73 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     borderRadius: 10,
     padding: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   governanceNoticeText: {
     fontSize: 11,
-    color: '#475569',
-    lineHeight: 15,
+    color: '#64748B',
     flex: 1,
+    lineHeight: 15,
   },
   bottomDecisionBar: {
-    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E6EAF1',
+    flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 8,
   },
   requestChangesBtn: {
-    flex: 1.2,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 10,
-    paddingVertical: 11,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    paddingVertical: 11,
   },
   requestChangesBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: '#475569',
   },
   rejectBtn: {
-    flex: 1,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-    borderRadius: 10,
-    paddingVertical: 11,
+    flex: 0.8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FEE2E2',
+    borderRadius: 10,
+    paddingVertical: 11,
   },
   rejectBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: '#DC2626',
   },
   approveBtn: {
-    flex: 1.5,
-    backgroundColor: '#0D9488',
-    borderRadius: 10,
-    paddingVertical: 11,
+    flex: 1.2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#0D9488',
+    borderRadius: 10,
+    paddingVertical: 11,
   },
   approveBtnText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
 });

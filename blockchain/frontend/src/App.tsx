@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
-import { Overview } from "./pages/Overview";
-import { WalletManagement } from "./pages/WalletManagement";
+import { ExecutiveOverview } from "./pages/ExecutiveOverview";
+import { DisruptionIntelligence } from "./pages/DisruptionIntelligence";
+import { SupplyChainNetwork } from "./pages/SupplyChainNetwork";
+import { RecoveryPlanning } from "./pages/RecoveryPlanning";
+import { SimulationOptimisation } from "./pages/SimulationOptimisation";
 import { PlanGovernance } from "./pages/PlanGovernance";
 import { VerificationCentre } from "./pages/VerificationCentre";
 import { TransactionExplorer } from "./pages/TransactionExplorer";
+import { WalletManagement } from "./pages/WalletManagement";
 import { TransactionStatus } from "./components/TransactionStatus";
 import { useWallet } from "./hooks/useWallet";
 import { useContract } from "./hooks/useContract";
@@ -14,6 +18,7 @@ import { CONTRACT_ADDRESSES } from "./services/contract";
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [selectedIncidentCode, setSelectedIncidentCode] = useState<string>("INC-2026-0881");
   const [contractAddress, setContractAddress] = useState<string>(
     (import.meta.env.VITE_CONTRACT_ADDRESS as string) || ""
   );
@@ -44,7 +49,7 @@ export const App: React.FC = () => {
         }
       })
       .catch(() => {
-        // Handled in pages
+        // Handled in components
       });
   }, [chainId]);
 
@@ -63,7 +68,7 @@ export const App: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         isAmoy={isAmoy}
-        networkName={isAmoy ? "Polygon Amoy" : chainId === 31337 ? "Hardhat DevNet" : "Unknown"}
+        networkName={isAmoy ? "Polygon Amoy" : chainId === 31337 ? "Hardhat DevNet" : "Hardhat (31337)"}
       />
 
       {/* Main Content Area */}
@@ -83,10 +88,10 @@ export const App: React.FC = () => {
         />
 
         {/* Dynamic Route View */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-950">
           <div className="max-w-7xl mx-auto">
             {activeTab === "overview" && (
-              <Overview
+              <ExecutiveOverview
                 onNavigate={(tab) => {
                   if (tab === "wallets") setActiveTab("wallet");
                   else setActiveTab(tab);
@@ -94,10 +99,37 @@ export const App: React.FC = () => {
                 connectedAccount={account}
               />
             )}
-            {activeTab === "wallet" && <WalletManagement />}
+
+            {activeTab === "disruptions" && (
+              <DisruptionIntelligence
+                onSelectRecoveryIncident={(incidentCode) => {
+                  setSelectedIncidentCode(incidentCode);
+                  setActiveTab("recovery-planning");
+                }}
+              />
+            )}
+
+            {activeTab === "network" && <SupplyChainNetwork initialTab="network" />}
+            {activeTab === "suppliers" && <SupplyChainNetwork initialTab="suppliers" />}
+            {activeTab === "purchase-orders" && <SupplyChainNetwork initialTab="purchase-orders" />}
+            {activeTab === "shipments" && <SupplyChainNetwork initialTab="shipments" />}
+            {activeTab === "inventory" && <SupplyChainNetwork initialTab="inventory" />}
+
+            {activeTab === "recovery-planning" && (
+              <RecoveryPlanning
+                initialIncidentCode={selectedIncidentCode}
+                onNavigateToGovernance={(_planId) => {
+                  setActiveTab("governance");
+                }}
+              />
+            )}
+
+            {activeTab === "simulation" && <SimulationOptimisation />}
+
             {activeTab === "governance" && <PlanGovernance />}
             {activeTab === "verification" && <VerificationCentre />}
             {activeTab === "transactions" && <TransactionExplorer />}
+            {activeTab === "wallet" && <WalletManagement />}
           </div>
         </main>
       </div>

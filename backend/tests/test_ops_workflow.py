@@ -7,6 +7,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from backend.app.blockchain.database import Base, get_db
+from backend.app.blockchain.database import create_all_tables, drop_all_tables
 from backend.app.main import app
 from backend.app.models.inventory import Inventory
 from backend.app.models.supply_chain import Warehouse
@@ -25,7 +26,7 @@ def client(tmp_path, monkeypatch):
         monkeypatch.delenv(name, raising=False)
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     event.listen(engine, "connect", lambda conn, _: conn.execute("PRAGMA foreign_keys=ON"))
-    Base.metadata.create_all(engine)
+    create_all_tables(engine)
     session = sessionmaker(bind=engine)()
     seed_module.seed(session, train_model=False)
     app.dependency_overrides[get_db] = lambda: session

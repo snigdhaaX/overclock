@@ -3,13 +3,14 @@ from unittest.mock import MagicMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from backend.app.blockchain.database import Base, BlockchainTransaction, BlockchainEvent
+from backend.app.blockchain.database import create_all_tables, drop_all_tables
 from backend.app.blockchain.transaction_service import TransactionService
 from backend.app.blockchain.event_listener import EventListenerService
 
 @pytest.fixture
 def db_session():
     engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
+    create_all_tables(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
     try:
@@ -143,3 +144,91 @@ def test_restart_reconciliation(db_session):
     tx2 = TransactionService.get_transaction(db_session, tx_hash2)
     assert tx1["status"] == "CONFIRMED"
     assert tx2["status"] == "PENDING"
+
+def test_transaction_confirming_state(db_session):
+    """When confirmations are greater than 1 but less than target threshold, status is CONFIRMING."""
+    tx_hash = "0x" + "f" * 64
+    TransactionService.register_transaction(
+        db=db_session,
+        tx_hash=tx_hash,
+        chain_id=80002,
+        contract_address="0x1234567890123456789012345678901234567890",
+        submitter_wallet="0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    )
+
+    mock_contract = MagicMock()
+    mock_contract.get_transaction_receipt.return_value = {
+        "blockNumber": 100,
+        "status": 1,
+        "gasUsed": 50000,
+    }
+    mock_contract.get_block_number.return_value = 104  # 104 - 100 + 1 = 5 confirmations
+
+    # Require 16 confirmations (Amoy production security threshold)
+    updated = TransactionService.update_transaction_status(
+        db_session, tx_hash, mock_contract, required_confirmations=16
+    )
+    assert updated.status == "CONFIRMING"
+    assert updated.confirmations == 5
+    assert updated.receipt_status == 1
+
+def test_transaction_reorged_when_receipt_disappears(db_session):
+    """When an included transaction disappears on subsequent poll due to a reorg, mark REORGED."""
+    tx_hash = "0x" + "8" * 64
+    TransactionService.register_transaction(
+        db=db_session,
+        tx_hash=tx_hash,
+        chain_id=80002,
+        contract_address="0x1234567890123456789012345678901234567890",
+        submitter_wallet="0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    )
+
+    # 1. First poll: transaction is included at block 300
+    mock_contract = MagicMock()
+    mock_contract.get_transaction_receipt.return_value = {
+        "blockNumber": 300,
+        "status": 1,
+        "gasUsed": 60000,
+    }
+    mock_contract.get_block_number.return_value = 300  # 1 confirmation
+    tx = TransactionService.update_transaction_status(db_session, tx_hash, mock_contract, required_confirmations=5)
+    assert tx.status == "INCLUDED"
+    assert tx.block_number == 300
+
+    # 2. Second poll: chain reorg occurs; receipt disappears
+    mock_contract.get_transaction_receipt.return_value = None
+    tx_reorg = TransactionService.update_transaction_status(db_session, tx_hash, mock_contract)
+    assert tx_reorg.status == "REORGED"
+    assert "disappeared" in tx_reorg.error_message.lower()
+
+def test_transaction_reorged_when_block_number_changes(db_session):
+    """When recorded block differs from new receipt block, mark REORGED."""
+    tx_hash = "0x" + "9" * 64
+    TransactionService.register_transaction(
+        db=db_session,
+        tx_hash=tx_hash,
+        chain_id=80002,
+        contract_address="0x1234567890123456789012345678901234567890",
+        submitter_wallet="0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    )
+
+    # 1. Included at block 400
+    mock_contract = MagicMock()
+    mock_contract.get_transaction_receipt.return_value = {
+        "blockNumber": 400,
+        "status": 1,
+        "gasUsed": 60000,
+    }
+    mock_contract.get_block_number.return_value = 400
+    tx = TransactionService.update_transaction_status(db_session, tx_hash, mock_contract, required_confirmations=5)
+    assert tx.block_number == 400
+
+    # 2. Re-mined into a different block 403 due to reorg
+    mock_contract.get_transaction_receipt.return_value = {
+        "blockNumber": 403,
+        "status": 1,
+        "gasUsed": 60000,
+    }
+    tx_reorg = TransactionService.update_transaction_status(db_session, tx_hash, mock_contract)
+    assert tx_reorg.status == "REORGED"
+    assert "reorg detected" in tx_reorg.error_message.lower()

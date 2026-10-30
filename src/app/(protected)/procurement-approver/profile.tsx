@@ -241,7 +241,7 @@ export default function ProcurementProfileScreen() {
             onPress={() =>
               handleOpenDialog(
                 'About TRUSTCHAIN',
-                'TRUSTCHAIN Enterprise Sourcing Suite\nVersion 5.0.0 (Phase 5 Build)\nBlockchain Anchoring: Ethereum L2 Testnet\nRole: Procurement Approver\nCompliance: ISO 27001 · SOC-2 Type II'
+                'TRUSTCHAIN Enterprise Sourcing Suite\nVersion 5.0.0 (Phase 5 Build)\nBlockchain Anchoring: Ethereum L2 Testnet\nRole: Procurement Approver\nCompliance: ISO 27001'
               )
             }
           >
@@ -251,7 +251,7 @@ export default function ProcurementProfileScreen() {
             <View style={styles.settingTextCol}>
               <Text style={styles.settingTitle}>About TRUSTCHAIN</Text>
               <Text style={styles.settingSubtitle}>
-                v5.0.0 (Phase 5) · ISO 27001 & SOC-2 Certified
+                v5.0.0 (Phase 5)
               </Text>
             </View>
             <ChevronRight size={16} color="#94A3B8" />

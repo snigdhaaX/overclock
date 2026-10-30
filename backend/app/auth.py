@@ -114,9 +114,11 @@ def _session_response(db: Session, user: User, roles: Set[str]) -> dict:
 @router.post("/login")
 def login(request: LoginRequest, db: Session = Depends(get_db)):
     invalid = HTTPException(status.HTTP_401_UNAUTHORIZED, detail={"code": "INVALID_CREDENTIALS", "message": "Invalid work email or password."})
-    user = db.query(User).filter(User.email == request.email.strip().lower()).first()
-    if user is None:
+    matches = db.query(User).filter(User.email == request.email.strip().lower()).limit(2).all()
+    # Emails are unique per organization, so a shared address can't be resolved to one account here.
+    if len(matches) != 1:
         raise invalid
+    user = matches[0]
     try:
         _hasher.verify(user.password_hash, request.password)
     except (Argon2Error, InvalidHashError):

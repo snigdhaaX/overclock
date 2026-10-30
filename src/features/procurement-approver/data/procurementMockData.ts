@@ -280,7 +280,6 @@ export const INITIAL_PROCUREMENT_REQUESTS: ProcurementRequest[] = [
     decisionTimestamp: '28 Oct 2026, 11:20 AM',
     decisionActor: 'Priya Sharma (Procurement Approver)',
     poId: 'PO-2026-4399',
-    txHash: '0x8f2a17cb6e94ad31',
   },
   {
     id: 'PR-2026-085',
@@ -338,7 +337,6 @@ export const INITIAL_PROCUREMENT_REQUESTS: ProcurementRequest[] = [
     decisionReason: 'Unit price quotation exceeds Q4 benchmark target by 12%. Re-negotiate volume tier discount.',
     decisionTimestamp: '26 Oct 2026, 17:05 PM',
     decisionActor: 'Priya Sharma (Procurement Approver)',
-    txHash: '0x3c99ab21ee0851f4',
   },
 ];
 
@@ -620,7 +618,6 @@ export const INITIAL_APPROVAL_AUDIT_EVENTS: ApprovalAuditEvent[] = [
     actionLabel: 'Request Approved',
     status: 'approved',
     comments: 'Approved domestic sourcing contract with Bharat Semiconductor Tech.',
-    txHash: '0x8f2a17cb6e94ad31',
   },
   {
     id: 'EVT-P904',
@@ -632,7 +629,6 @@ export const INITIAL_APPROVAL_AUDIT_EVENTS: ApprovalAuditEvent[] = [
     actionLabel: 'Purchase Order Issued',
     status: 'approved',
     comments: 'Generated Purchase Order PO-2026-4399 for 350 units (₹770,000). Transmitted via automated EDI.',
-    txHash: '0x8f2a17cb6e94ad31',
   },
   {
     id: 'EVT-P905',
@@ -644,7 +640,6 @@ export const INITIAL_APPROVAL_AUDIT_EVENTS: ApprovalAuditEvent[] = [
     actionLabel: 'Request Rejected',
     status: 'rejected',
     comments: 'Unit price quotation exceeds Q4 benchmark target by 12%. Re-negotiate volume tier discount.',
-    txHash: '0x3c99ab21ee0851f4',
   },
 ];
 

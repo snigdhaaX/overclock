@@ -362,7 +362,6 @@ export const INITIAL_STOCK_TRANSFERS: StockTransfer[] = [
     requestedBy: 'David Vance (Manager)',
     requestedAt: '24 Oct 2026, 09:30 AM',
     approvedBy: 'David Vance (Supply Chain Manager)',
-    txHash: '0x3a9f18e2c04b88d5',
   },
   {
     id: 'TRF-881',
@@ -397,7 +396,6 @@ export const INITIAL_DAMAGE_REPORTS: DamageReport[] = [
     reportedAt: '24 Oct 2026, 10:45 AM',
     status: 'quarantined',
     warehouseId: 'WH-MUM',
-    txHash: '0x99e2a87bc12d0941',
   },
 ];
 
@@ -419,7 +417,6 @@ export const INITIAL_GOODS_RECEIPTS: GoodsReceipt[] = [
     receivedBy: 'Rohit Verma',
     receivedAt: '24 Oct 2026, 09:15 AM',
     status: 'confirmed',
-    txHash: '0x88c42a19b02f54e1',
   },
 ];
 

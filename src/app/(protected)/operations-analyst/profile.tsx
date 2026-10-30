@@ -93,7 +93,7 @@ export default function ProfileScreen() {
         },
         {
           title: 'About TRUSTCHAIN Mobile',
-          subtitle: 'Version 1.2.0 (Build 584) • SOC2 Type II Certified',
+          subtitle: 'Version 1.2.0 (Build 584)',
           icon: <Info size={18} color="#475569" />,
           bg: '#F1F5F9',
         },

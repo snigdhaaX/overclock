@@ -66,14 +66,14 @@ def _sql(statement: str):
 
 def _operational_tables():
     from ..models import Base
-    skip = {"permissions", "user_wallets", "wallet_nonces", "blockchain_transactions", "blockchain_events", "operational_plans"}
+    skip = {"permissions", "user_wallets", "wallet_nonces", "wallet_sessions", "blockchain_transactions", "blockchain_events", "operational_plans"}
     return [t for t in Base.metadata.sorted_tables if t.name not in skip]
 
 
 def seed(db: Session, train_model: bool = True) -> Dict[str, str]:
     reset(db)
     now = utcnow()
-    org = Organization(id=uuid.uuid4(), name="Apex Global Logistics (demo data)", slug=ORG_SLUG, settings={"demo": True})
+    org = Organization(id=uuid.uuid4(), name="Apex Global Logistics (demo data)", slug=ORG_SLUG, settings={"demo": True, "external_org_id": "ORG-APEX-GLOBAL", "chain_run": uuid.uuid4().hex[:6]})
     db.add(org)
     db.flush()
     oid = org.id

@@ -4,6 +4,7 @@ import hashlib
 import json
 import uuid
 from typing import Any, Dict, List, Optional
+import logging
 import jcs
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -21,6 +22,9 @@ from ..recommendations import engine as recommendations
 from ..recommendations.engine import supplier_reliability  # noqa: F401  (used by routes)
 from ..risk.models import RiskExposure
 from . import chain
+
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowError(Exception):
@@ -97,7 +101,23 @@ def process_carrier_event(db: Session, org: Organization, payload: Dict[str, Any
         payload=json.loads(json.dumps(payload, default=str)),
     )
     db.add(event)
-    db.flush()
+    # Saved on its own first, so a failure below can't lose the event (PRD 6.46).
+    db.commit()
+    event_pk = event.id
+    try:
+        return _apply_carrier_event(db, org, shipment, event, payload, event_id, when)
+    except Exception as exc:
+        db.rollback()
+        failed = db.get(CarrierEvent, event_pk)
+        failed.processing_status = "FAILED"
+        failed.processing_error = f"{type(exc).__name__}: {str(exc)[:300]}"
+        failed.retry_count += 1
+        db.commit()
+        logger.exception("Carrier event %s failed", event_id)
+        return {"status": "FAILED", "event_id": event_id, "retryable": True}
+
+
+def _apply_carrier_event(db: Session, org: Organization, shipment: Shipment, event: CarrierEvent, payload: Dict[str, Any], event_id: str, when: datetime.datetime) -> Dict[str, Any]:
     newest = db.query(func.max(CarrierEvent.event_timestamp)).filter(CarrierEvent.shipment_id == shipment.id, CarrierEvent.id != event.id, CarrierEvent.processing_status == "PROCESSED").scalar()
     if newest is not None and aware(newest) > when:
         # Kept as history, but an older event can't overwrite newer state (PRD 6.44).
@@ -254,7 +274,15 @@ def _plan_hash_payload(org: Organization, plan: RecoveryPlan, actions: List[Dict
             for a in actions
         ],
         "estimated_total_cost": sum(a.get("cost", 0) for a in actions), "currency": "USD",
+        # The contract rejects a reused hash, so a reseeded demo must not reproduce an earlier one.
+        "policy_snapshot": {"chain_run": str((org.settings or {}).get("chain_run", ""))},
     }
+
+
+def _chain_plan_id(org: Organization, key: str) -> str:
+    """The chain outlives a demo reset, so each seeded run needs its own on-chain plan ids."""
+    run = (org.settings or {}).get("chain_run", "")
+    return f"{key[:24]}-{run}" if run else key
 
 
 def compute_plan_hash(db: Session, org: Organization, plan: RecoveryPlan) -> str:
@@ -305,7 +333,7 @@ def submit_plan(db: Session, org: Organization, user: User, key: str) -> Recover
     db.flush()
     plan.plan_hash = compute_plan_hash(db, org, plan)
     simulation_hash = "0x" + hashlib.sha256(plan.plan_hash.encode()).hexdigest()
-    sent = _chain_tx(db, org.id, "anchor", key, lambda: chain.anchor_plan(key, plan.version, plan.plan_hash, simulation_hash))
+    sent = _chain_tx(db, org.id, "anchor", key, lambda: chain.anchor_plan(_chain_plan_id(org, key), plan.version, plan.plan_hash, simulation_hash))
     plan.expected_outcome = {"anchor": sent}
     audit(db, org.id, user.id, "PLAN_SUBMITTED", "plan", key, {"hash": plan.plan_hash, "tx": sent["tx_hash"], "chain_status": sent["chain_status"]}, plan.version)
     _notify(db, org.id, "SUPPLY_CHAIN_MANAGER", "APPROVAL_REQUIRED", "HIGH", f"Approval needed: {plan.title}", f"{key} version {plan.version}, estimated ${float(plan.estimated_cost):,.0f}.", key, f"approve:{key}:{plan.version}")
@@ -331,11 +359,11 @@ def decide_plan(db: Session, org: Organization, user: User, key: str, decision: 
     sent: Dict[str, Any] = {"chain_status": "NOT_REQUIRED", "tx_hash": None}
     if decision == "APPROVED":
         plan.status = "APPROVED"
-        sent = _chain_tx(db, org.id, "approve", key, lambda: chain.approve_plan(key, plan.version))
+        sent = _chain_tx(db, org.id, "approve", key, lambda: chain.approve_plan(_chain_plan_id(org, key), plan.version))
     elif decision == "REJECTED":
         plan.status = "REJECTED"
         reason_hash = "0x" + hashlib.sha256((comments or "rejected").encode()).hexdigest()
-        sent = _chain_tx(db, org.id, "reject", key, lambda: chain.reject_plan(key, plan.version, reason_hash))
+        sent = _chain_tx(db, org.id, "reject", key, lambda: chain.reject_plan(_chain_plan_id(org, key), plan.version, reason_hash))
     else:
         plan.status = "REVISION_REQUIRED"
     db.add(Approval(
@@ -354,6 +382,11 @@ def confirm_execution(db: Session, org: Organization, user: User, key: str) -> E
         raise WorkflowError(404, "PLAN_NOT_FOUND", f"{key} doesn't exist.")
     if plan.status != "APPROVED":
         raise WorkflowError(409, "NOT_APPROVED", "Execution needs a completed approval first.")
+    # What runs must be exactly what was approved.
+    if compute_plan_hash(db, org, plan) != plan.plan_hash:
+        audit(db, org.id, user.id, "PLAN_TAMPER_DETECTED", "plan", key, plan_version=plan.version)
+        db.commit()
+        raise WorkflowError(409, "PLAN_CHANGED", "This plan changed after approval, so it can't run.")
     approval = db.query(Approval).filter_by(plan_id=plan.id, decision="APPROVED").first()
     if approval is None:
         raise WorkflowError(409, "NOT_APPROVED", "Execution needs a completed approval first.")
@@ -395,8 +428,8 @@ def confirm_execution(db: Session, org: Organization, user: User, key: str) -> E
     disruption = db.get(Disruption, plan.disruption_id)
     disruption.status = "RESOLVED"
     _mitigate_orders(db, org, disruption, plan)
-    evidence = "0x" + hashlib.sha256(jcs.canonicalize({"plan": key, "version": plan.version, "results": results})).hexdigest()
-    sent = _chain_tx(db, org.id, "evidence", key, lambda: chain.anchor_execution(key, plan.version, evidence))
+    evidence = "0x" + hashlib.sha256(jcs.canonicalize({"plan": _chain_plan_id(org, key), "version": plan.version, "results": results})).hexdigest()
+    sent = _chain_tx(db, org.id, "evidence", key, lambda: chain.anchor_execution(_chain_plan_id(org, key), plan.version, evidence))
     audit(db, org.id, user.id, "EXECUTION_COMPLETED", "plan", key, {"evidence_hash": evidence, "tx": sent["tx_hash"], "chain_status": sent["chain_status"], "simulated": True}, plan.version)
     _notify(db, org.id, "OPERATIONS_ANALYST", "EXECUTION_COMPLETED", "INFO", f"{key}: recovery completed", "Actions were simulated and recorded.", key, f"executed:{key}:{plan.version}")
     db.commit()
@@ -460,7 +493,7 @@ def verify_plan(db: Session, org: Organization, key: str) -> Dict[str, Any]:
         raise WorkflowError(404, "PLAN_NOT_FOUND", f"{key} doesn't exist.")
     current = compute_plan_hash(db, org, plan)
     local_match = current == plan.plan_hash
-    chain_match = chain.on_chain_hash_matches(key, plan.version, current) if chain.enabled() else None
+    chain_match = chain.on_chain_hash_matches(_chain_plan_id(org, key), plan.version, current) if chain.enabled() else None
     if not local_match or chain_match is False:
         result = "HASH_MISMATCH"
     elif chain_match:

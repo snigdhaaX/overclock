@@ -175,7 +175,6 @@ export const MOCK_AUDIT_EVENTS: AuditEvent[] = [
     relatedEntityType: 'plan',
     description: 'Submitted Recovery Plan A (WH-BLR Stock Transfer) for Manager authorization.',
     verificationStatus: 'verified',
-    txHash: '0x8f2c31e9a4d70b12',
   },
   {
     id: 'EVT-903',
@@ -187,7 +186,6 @@ export const MOCK_AUDIT_EVENTS: AuditEvent[] = [
     relatedEntityType: 'disruption',
     description: 'Vessel MSC Clara transshipment congestion flagged (+120 hrs revision).',
     verificationStatus: 'verified',
-    txHash: '0x7e1b59a3c0f42d88',
   },
   {
     id: 'EVT-902',
@@ -199,7 +197,6 @@ export const MOCK_AUDIT_EVENTS: AuditEvent[] = [
     relatedEntityType: 'disruption',
     description: 'Began multi-echelon impact analysis across orders ORD-445, ORD-446, ORD-447.',
     verificationStatus: 'verified',
-    txHash: '0x3a9f02e1c7d88b44',
   },
   {
     id: 'EVT-901',
@@ -211,7 +208,6 @@ export const MOCK_AUDIT_EVENTS: AuditEvent[] = [
     relatedEntityType: 'plan',
     description: 'Approved Recovery Plan D (Split Fulfilment) with policy threshold sign-off.',
     verificationStatus: 'verified',
-    txHash: '0x9f88c21a5e0b77d2',
   },
   {
     id: 'EVT-900',
@@ -223,7 +219,6 @@ export const MOCK_AUDIT_EVENTS: AuditEvent[] = [
     relatedEntityType: 'plan',
     description: 'Completed RFID staging & scanning for 280 units of PRD-012 at WH-BLR.',
     verificationStatus: 'verified',
-    txHash: '0x1c4d98a2f3e70b99',
   },
 ];
 

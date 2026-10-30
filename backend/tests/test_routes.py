@@ -9,6 +9,7 @@ from eth_account.messages import encode_defunct
 
 from backend.app.main import app
 from backend.app.blockchain.database import Base, get_db
+from backend.app.blockchain.database import create_all_tables, drop_all_tables
 from backend.app.blockchain.routes import get_contract_service
 from backend.app.blockchain.hash_service import RecoveryPlanHashService
 
@@ -19,7 +20,7 @@ def client_and_db():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine)
+    create_all_tables(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
 

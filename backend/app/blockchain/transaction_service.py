@@ -1,3 +1,4 @@
+import os
 import datetime
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
@@ -5,10 +6,16 @@ from .config import settings
 from .database import BlockchainTransaction
 from .contract_service import ContractService
 
+DEFAULT_CHAIN_CONFIRMATIONS = {
+    31337: 1,  # Local Hardhat (instant finality)
+    80002: int(os.getenv("AMOY_CONFIRMATION_BLOCKS", "2")),  # Polygon Amoy (configurable)
+    137: int(os.getenv("POLYGON_MAINNET_CONFIRMATION_BLOCKS", "64")),  # Polygon Mainnet
+}
+
 class TransactionService:
     """
     Persistent transaction tracker tracking statuses:
-    CREATED, PENDING, SUBMITTED, INCLUDED, CONFIRMED, FAILED, REORG_REVIEW.
+    CREATED, PENDING, SUBMITTED, INCLUDED, CONFIRMING, CONFIRMED, FAILED, REORGED.
     Never marks confirmed without validating receipt and required confirmations.
     """
 
@@ -68,7 +75,8 @@ class TransactionService:
         if not tx:
             raise ValueError(f"Transaction {normalized_hash} is not registered.")
 
-        target_confirmations = required_confirmations or settings.CONFIRMATION_BLOCKS
+        chain_target = DEFAULT_CHAIN_CONFIRMATIONS.get(tx.chain_id, settings.CONFIRMATION_BLOCKS)
+        target_confirmations = required_confirmations or chain_target
 
         try:
             receipt = contract_service.get_transaction_receipt(normalized_hash)
@@ -80,8 +88,11 @@ class TransactionService:
             return tx
 
         if receipt is None:
-            # Transaction is still pending or dropped
-            if tx.status not in ["FAILED", "CONFIRMED"]:
+            # Transaction is still pending or dropped during a reorg
+            if tx.status in ["INCLUDED", "CONFIRMING"]:
+                tx.status = "REORGED"
+                tx.error_message = f"Transaction disappeared from chain; previously included at block {tx.block_number}."
+            elif tx.status not in ["FAILED", "CONFIRMED", "REORGED"]:
                 tx.status = "PENDING"
             db.commit()
             db.refresh(tx)
@@ -94,7 +105,7 @@ class TransactionService:
 
         # Detect potential reorg if blockNumber changed unexpectedly
         if tx.block_number and tx.block_number != tx_block:
-            tx.status = "REORG_REVIEW"
+            tx.status = "REORGED"
             tx.error_message = f"Reorg detected: recorded block {tx.block_number} differs from receipt block {tx_block}."
             db.commit()
             db.refresh(tx)
@@ -120,11 +131,18 @@ class TransactionService:
 
         tx.confirmations = conf_count
 
+        # Receipt revalidation before confirmation
         if conf_count >= target_confirmations:
-            tx.status = "CONFIRMED"
-            if not tx.confirmed_at:
-                tx.confirmed_at = datetime.datetime.utcnow()
-            tx.error_message = None
+            if receipt_status == 1:
+                tx.status = "CONFIRMED"
+                if not tx.confirmed_at:
+                    tx.confirmed_at = datetime.datetime.utcnow()
+                tx.error_message = None
+            else:
+                tx.status = "FAILED"
+                tx.error_message = "Receipt status indicated transaction failure."
+        elif conf_count > 1:
+            tx.status = "CONFIRMING"
         else:
             tx.status = "INCLUDED"
 

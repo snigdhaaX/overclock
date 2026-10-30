@@ -476,7 +476,6 @@ export const INITIAL_AUDIT_LOGS: PlatformAuditEvent[] = [
     resource: 'REQ-2026-0101',
     result: 'Success',
     details: 'Authorized emergency purchase order (PO-2026-8801) within ₹25.0L statutory ceiling.',
-    txHash: '0x8f2a17cb6e94ad31',
   },
   {
     id: 'aud_106',
@@ -488,7 +487,6 @@ export const INITIAL_AUDIT_LOGS: PlatformAuditEvent[] = [
     resource: 'DMG-2026-0042',
     result: 'Warning',
     details: 'Quarantined 25 units of SKU-ELEC-4421 due to severe pallet crushed packaging.',
-    txHash: '0x3a9f18e2c04b88d5',
   },
   {
     id: 'aud_105',
@@ -500,7 +498,6 @@ export const INITIAL_AUDIT_LOGS: PlatformAuditEvent[] = [
     resource: 'REC-2026-001',
     result: 'Success',
     details: 'Authorized Singapore corridor air freight expedite and WH-BOM buffer rebalance.',
-    txHash: '0x8f2c31e9a4d70b12',
   },
   {
     id: 'aud_104',

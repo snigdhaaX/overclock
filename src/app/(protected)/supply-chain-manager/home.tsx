@@ -77,10 +77,10 @@ export default function ManagerHomeScreen() {
             <View>
               <Text style={styles.healthHeroTag}>NETWORK HEALTH INDEX</Text>
               <View style={styles.healthScoreRow}>
-                <Text style={styles.healthScoreValue}>{health.healthScore}%</Text>
+                <Text style={styles.healthScoreValue}>{health.activeDisruptions > 0 ? 'At risk' : 'Stable'}</Text>
                 <View style={styles.healthStatusPill}>
                   <TrendingUp size={12} color="#16A36A" style={{ marginRight: 3 }} />
-                  <Text style={styles.healthStatusText}>Optimal Operations</Text>
+                  <Text style={styles.healthStatusText}>{health.ordersAtRisk} orders at risk</Text>
                 </View>
               </View>
             </View>
@@ -116,7 +116,7 @@ export default function ManagerHomeScreen() {
             <ManagerMetricCard
               title="Orders at Risk"
               value={health.ordersAtRisk}
-              subtitle="$342,000 exposure"
+              subtitle={`${health.activeDisruptions} active disruptions`}
               icon={<Package size={14} color="#2563EB" />}
               accentColor="#2563EB"
             />

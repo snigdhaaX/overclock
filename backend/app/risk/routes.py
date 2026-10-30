@@ -5,7 +5,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status a
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 from ..blockchain.database import get_db
-from ..blockchain.routes import AuthenticatedUser, get_current_user
+from fastapi import Header
+from ..blockchain.routes import AuthenticatedUser
+from ..identity import bearer_token, header_auth_allowed, identity_from_jwt
 from . import service, training
 
 router = APIRouter(prefix="/api/v1/risk", tags=["Risk Intelligence"])
@@ -13,6 +15,26 @@ router = APIRouter(prefix="/api/v1/risk", tags=["Risk Intelligence"])
 MODEL_ADMIN_ROLES = {"operations_analyst", "administrator"}
 _retrain_locks: Dict[str, threading.Lock] = {}
 _locks_guard = threading.Lock()
+
+
+def get_current_user(
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
+    x_org_id: Optional[str] = Header(None, alias="X-Organization-Id"),
+    x_roles: Optional[str] = Header(None, alias="X-User-Roles"),
+    db: Session = Depends(get_db),
+) -> AuthenticatedUser:
+    """Risk data is keyed by organization slug, so this resolves the slug from the verified token."""
+    token = bearer_token(authorization)
+    if token:
+        identity = identity_from_jwt(db, token)
+        if identity is None:
+            raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED, detail="Please sign in again.")
+        return AuthenticatedUser(user_id=identity.user_id, organization_id=identity.organization_slug, roles=identity.roles)
+    if not header_auth_allowed():
+        raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED, detail="Please sign in.")
+    roles = [r.strip() for r in x_roles.split(",")] if x_roles else ["operations_analyst"]
+    return AuthenticatedUser(user_id=x_user_id or "user:test", organization_id=x_org_id or "org:test", roles=roles)
 
 
 class ExposureFeatures(BaseModel):
