@@ -1,11 +1,27 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# dependencies
+# Dependencies
 node_modules/
+**/node_modules/
 
-# Expo
+# Secrets & Environments
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+.env*.local
+.env.local
+*.local
+*.pem
+*.key
+
+# Expo & Web
 .expo/
 dist/
+**/dist/
 web-build/
 expo-env.d.ts
 
@@ -15,13 +31,10 @@ expo-env.d.ts
 *.jks
 *.p8
 *.p12
-*.key
 *.mobileprovision
 
-# Metro
+# Metro & Debug
 .metro-health-check*
-
-# debug
 npm-debug.*
 yarn-debug.*
 yarn-error.*
@@ -29,35 +42,38 @@ yarn-error.*
 # macOS & OS files
 .DS_Store
 Thumbs.db
-*.pem
 
-# local env files
-.env*.local
-.env
-.env.local
-*.local
-
-# typescript
+# Typescript
 *.tsbuildinfo
 
-example
-
-# generated native folders
+# Generated native folders
 /ios
 /android
 
-# Virtual environments
+# Hardhat & Blockchain Artifacts
+blockchain/artifacts/
+blockchain/cache/
+blockchain/coverage/
+blockchain/coverage.json
+blockchain/typechain-types/
+blockchain/deployments/localhost.json
+
+# Virtual Environments
 .venv/
 venv/
 ENV/
 
-# Python cache & artifacts
+# Python Cache & Artifacts
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 .pytest_cache/
 
-# Databases & local data
+# Databases & Local State
 *.db
+*.sqlite
 *.sqlite3
 **/backend/data/*.db
+trustchain.db
