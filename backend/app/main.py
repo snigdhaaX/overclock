@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .blockchain.routes import router as blockchain_router
 from .blockchain.database import init_db
+from . import models as _all_tables  # noqa: F401
+from .auth import router as auth_router
+from .ops.routes import router as ops_router
 from .risk.routes import router as risk_router
 
 app = FastAPI(
@@ -22,6 +25,8 @@ app.add_middleware(
 # Include blockchain module
 app.include_router(blockchain_router)
 app.include_router(risk_router)
+app.include_router(auth_router)
+app.include_router(ops_router)
 
 @app.on_event("startup")
 def on_startup():

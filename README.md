@@ -1,158 +1,387 @@
-# TRUSTCHAIN: Unified Supply Chain Disruption Intelligence, Recovery & Governance
+<div align="center">
 
-> Enterprise-grade platform uniting real-time AI supply chain disruption intelligence with cryptographic accountability and multi-signature governance anchored on Polygon Amoy.
+# ⛓️ TRUSTCHAIN
+
+### Don't just detect disruptions. Resolve their consequences.
+
+AI-assisted supply chain recovery, where every decision is explainable, feasible and accountable.
+
+<br/>
+
+![Expo](https://img.shields.io/badge/Expo_58-000020?style=for-the-badge&logo=expo&logoColor=white)
+![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+<br/>
+![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)
+![Solidity](https://img.shields.io/badge/Solidity-363636?style=for-the-badge&logo=solidity&logoColor=white)
+![Polygon](https://img.shields.io/badge/Polygon_Amoy-7B3FE4?style=for-the-badge&logo=polygon&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge)
+
+<br/>
+
+[The idea](#-the-idea) •
+[Architecture](#%EF%B8%8F-architecture) •
+[Workflow](#-workflow) •
+[Risk engine](#-adaptive-risk-engine) •
+[Database](#%EF%B8%8F-database) •
+[Status](#-project-status) •
+[Quick start](#-quick-start)
+
+<sub>Built for the OVERCLOCK '26 Hackathon</sub>
+
+</div>
 
 ---
 
-## 🌟 Platform Overview
+## 💡 The idea
 
-**TRUSTCHAIN** bridges physical supply chain logistics with cryptographic transparency:
-1. **Disruption Intelligence & Risk Scoring:** Real-time event detection (port congestion, geopolitical conflict, severe weather, labor strikes) with algorithmic impact analysis across purchase orders, shipments, inventory, and supplier SLA exposure.
-2. **AI-Powered Recovery Simulation:** Automated generation of multi-action recovery plans (re-route, alternate supplier procurement, expedited warehouse transfer) evaluated across cost, time, and SLA feasibility.
-3. **Cryptographic Accountability:** RFC 8785 canonical SHA-256 digests of operational plans, simulations, and execution evidence anchored immutably to smart contracts.
-4. **On-Chain Governance & Separation of Duties:** Deployed on Polygon Amoy, enforcing role separation where recovery plan authors cannot self-approve (`CreatorCannotDecide`), preventing single-point failure or unauthorized reroutes.
-5. **Stakeholder Multi-Client Experience:** 
-   - **Expo / React Native Mobile App:** Built for Operations Analysts, Supply Chain Managers, and Warehouse Operators on the move.
-   - **Web Verification Centre & Governance Dashboard:** React 19 / Vite audit portal for verifying operational records against blockchain state and detecting tampering in real time.
+Spotting one late shipment is easy. Working out **which customer orders it really affects, what can feasibly be done, and who is allowed to decide** is the hard part.
 
----
+TRUSTCHAIN turns scattered supply chain updates into one governed path, from first signal to verified outcome:
 
-## 🏗️ Unified Architecture
+> **SENSE → CONNECT → DETECT → TRACE → PRIORITIZE → RECOMMEND → SIMULATE → OPTIMIZE → APPROVE → CONFIRM → EXECUTE → VERIFY**
 
+| | Capability | What it means |
+|---|---|---|
+| 🔗 | **Connected data** | Suppliers, shipments, stock and orders linked in one model |
+| 🎯 | **Real impact** | A delay only counts if it really reaches an order line |
+| 🧠 | **Adaptive risk** | ML that learns from outcomes, and must beat a fixed formula to go live |
+| ⚙️ | **Feasible recovery** | Rules and optimization decide what's possible; AI only advises |
+| ✍️ | **Governed decisions** | Authors can't approve their own plans, and execution needs explicit confirmation |
+| 🔐 | **Verifiable evidence** | Decision hashes anchored on-chain, with no personal data |
+
+## 🏗️ Architecture
+
+One backend serves every client. The blockchain holds evidence, never operational data.
+
+```mermaid
+flowchart TB
+    subgraph clients["📱 Clients"]
+        direction LR
+        MOB["Mobile app<br/>Expo + React Native"]
+        WEB["Verification portal<br/>React + Vite"]
+    end
+
+    subgraph api["⚡ FastAPI backend"]
+        direction LR
+        RISK["Risk engine<br/>ML + formula"]
+        CHAIN["Blockchain services<br/>hashing, wallets, tx tracking"]
+        CORE["Operations API<br/>planned"]
+    end
+
+    subgraph data["🗄️ Data"]
+        direction LR
+        DB[("PostgreSQL<br/>52-table schema")]
+        MODELS[("Versioned<br/>ML models")]
+    end
+
+    SC["⛓️ TrustChainGovernance.sol<br/>Polygon Amoy"]
+    EVENTS["🚚 Carrier and supplier events<br/>planned"]
+
+    MOB -- "REST" --> RISK
+    MOB -. "planned" .-> CORE
+    WEB -- "REST" --> CHAIN
+    WEB -- "MetaMask" --> SC
+    EVENTS -.-> CORE
+    RISK --> DB
+    RISK --> MODELS
+    CORE -.-> DB
+    CHAIN --> DB
+    CHAIN -- "Web3.py" --> SC
+
+    classDef live fill:#2563EB,stroke:#1E40AF,color:#FFFFFF
+    classDef store fill:#0D9488,stroke:#115E59,color:#FFFFFF
+    classDef chain fill:#7B3FE4,stroke:#5B21B6,color:#FFFFFF
+    classDef planned fill:#64748B,stroke:#475569,color:#FFFFFF,stroke-dasharray: 5 5
+    class MOB,WEB,RISK,CHAIN live
+    class DB,MODELS store
+    class SC chain
+    class CORE,EVENTS planned
 ```
-                                  ┌────────────────────────┐
-                                  │   TRUSTCHAIN Clients   │
-                                  └────┬──────────────┬────┘
-                                       │              │
-                   ┌───────────────────┴──┐        ┌──┴───────────────────┐
-                   │  Mobile App (Expo)   │        │  Web Audit & Gov UI  │
-                   │  React Native / iOS  │        │  React 19 / Vite     │
-                   │  Android / Web       │        │  Verification Centre │
-                   └──────────┬───────────┘        └──┬───────────────────┘
-                              │                       │
-                              │ EIP-191 Auth /        │ Web3.js / MetaMask /
-                              │ REST Requests         │ Contract Interop
-                              │                       │
-                              ▼                       ▼
-                   ┌──────────────────────────────────────────────┐
-                   │               FastAPI Backend                │
-                   │  • RFC 8785 Canonical Hashing Engine         │
-                   │  • Impact Graph & Simulation Services        │
-                   │  • EIP-191 Nonce Signatures & Wallet Linking │
-                   │  • Web3.py Blockchain Tx & Event Indexer     │
-                   │  • SQLite / PostgreSQL Operational Store     │
-                   └──────────────────────┬───────────────────────┘
-                                          │
-                                          │ Anchoring & Verification
-                                          │ (Hashes only, zero PII)
-                                          ▼
-                   ┌──────────────────────────────────────────────┐
-                   │    Polygon Amoy Testnet (Chain ID: 80002)    │
-                   │          TrustChainGovernance.sol            │
-                   │  0x33D476cE98f8a374C73D3eDa5FDE65917bA3e24A │
-                   └──────────────────────────────────────────────┘
+
+<sub>Dashed grey boxes are specified in the PRD but not built yet.</sub>
+
+## 🔄 Workflow
+
+Humans stay in control: neither an AI suggestion nor a finished simulation can trigger execution.
+
+```mermaid
+flowchart TD
+    A["🚚 Carrier event or data import"] --> B{"Authentic, valid,<br/>not a duplicate?"}
+    B -- No --> B1["Reject or quarantine,<br/>keep the evidence"]
+    B -- Yes --> C["Detect disruption"]
+    C --> D["Trace affected order lines"]
+    D --> E["Rank orders by risk"]
+    E --> F["AI explains and suggests"]
+    F --> G["Rules and optimizer<br/>keep what's feasible"]
+    G --> H["Analyst submits plan"]
+    H --> I{"Approver decides"}
+    I -- Reject --> J["Plan closed"]
+    I -- "Request changes" --> K["New plan version"]
+    K --> H
+    I -- Approve --> L{"Authorized user<br/>confirms execution?"}
+    L -- Yes --> M["Simulate recovery actions"]
+    M --> N["🔐 Audit trail and<br/>on-chain evidence"]
+
+    classDef human fill:#F59E0B,stroke:#B45309,color:#1F2937
+    classDef machine fill:#2563EB,stroke:#1E40AF,color:#FFFFFF
+    classDef proof fill:#7B3FE4,stroke:#5B21B6,color:#FFFFFF
+    class H,I,L human
+    class C,D,E,F,G,M machine
+    class N proof
 ```
 
----
+### 🤝 Who can do what in an approval
 
-## ⛓️ Smart Contract Details (`blockchain/contracts/TrustChainGovernance.sol`)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor A as Operations Analyst
+    participant API as Backend
+    actor M as Supply Chain Manager
+    participant C as Smart contract
 
-- **Polygon Amoy Verified Contract:** `0x33D476cE98f8a374C73D3eDa5FDE65917bA3e24A` (Chain ID: `80002`)
-- **Local DevNet Contract:** `0x5FbDB2315678afecb367f032d93F642f64180aa3` (Chain ID: `31337`)
-- **Action Categories & Bitmask:**
-  - `0x01`: Operations Analyst (Plan Authoring)
-  - `0x02`: Supply Chain Manager (Stage Approval)
-  - `0x04`: Warehouse Approver (Stage Approval)
-  - `0x08`: Procurement Approver (Stage Approval)
-  - `0x10`: Organization Administrator
-- **Key Invariants:**
-  - `CreatorCannotDecide`: The author of a recovery plan cannot approve or reject their own submission.
-  - `Multi-Stage Approval`: Multi-action plans require approval from distinct authorized role wallets.
-  - `Zero PII / Off-Chain Data`: Only deterministic 32-byte hashes (`planHash`, `simulationHash`, `evidenceHash`) are recorded on-chain.
-
----
-
-## 📁 Repository Structure
-
-```
-.
-├── backend/                  # FastAPI backend with blockchain integration
-│   ├── app/
-│   │   ├── blockchain/       # RFC 8785 hash engine, EIP-191 service, Web3 verification
-│   │   └── main.py           # FastAPI entrypoint
-│   ├── requirements.txt      # Python dependencies
-│   └── tests/                # 34 passing Python tests (hash, wallet, tx, routes)
-├── blockchain/               # Hardhat Ethereum / Polygon environment
-│   ├── contracts/            # TrustChainGovernance.sol
-│   ├── deployments/          # Amoy network artifacts & addresses
-│   ├── frontend/             # React 19 / Vite Blockchain Verification Dashboard
-│   ├── scripts/              # Local demonstration & deployment scripts
-│   └── test/                 # 94 passing Solidity governance tests
-├── src/                      # Mobile application (Expo Router / React Native)
-│   ├── features/
-│   │   ├── operations-analyst/     # Disruption intelligence, recovery cards
-│   │   ├── supply-chain-manager/   # Network maps, routes, approval flows
-│   │   └── warehouse-operator/     # Scanning, cargo check, floor maps
-├── TRUSTCHAIN_Basic_Framework/ # Decision-support and risk analysis prototypes
-├── .env.example              # Environment variables template
-└── README.md
+    A->>API: Submit recovery plan v1
+    API->>C: Anchor plan hash
+    A-xAPI: Try to approve own plan
+    API--xA: Rejected, creator cannot decide
+    M->>API: Review exact plan version
+    M->>C: Sign approval with wallet
+    C-->>API: Approval event confirmed
+    M->>API: Confirm execution
+    API->>C: Anchor execution evidence
 ```
 
----
+### 🧭 Life of a recovery plan
 
-## 🧪 Automated Testing Status
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> SIMULATED
+    SIMULATED --> SUBMITTED
+    SUBMITTED --> UNDER_REVIEW
+    UNDER_REVIEW --> APPROVED
+    UNDER_REVIEW --> REJECTED
+    UNDER_REVIEW --> REVISION_REQUIRED
+    REVISION_REQUIRED --> DRAFT: new version
+    APPROVED --> EXECUTION_PENDING: explicit confirmation
+    EXECUTION_PENDING --> EXECUTING
+    EXECUTING --> COMPLETED
+    EXECUTING --> PARTIALLY_COMPLETED
+    EXECUTING --> FAILED
+    PARTIALLY_COMPLETED --> MANUAL_REVIEW
+    FAILED --> MANUAL_REVIEW
+    REJECTED --> [*]
+    COMPLETED --> [*]
+```
 
-| Component | Framework | Tests | Status |
-|---|---|---|---|
-| Smart Contracts | Hardhat / Mocha / Chai | 94 passing | ✅ 100% Green |
-| Backend & Governance Services | Pytest / Web3.py / FastAPI | 34 passing | ✅ 100% Green |
-| Frontend Verification Centre | Vite / TypeScript | 0 errors | ✅ Production build verified |
-| Mobile Application | TypeScript / Expo Lint | Validated | ✅ Verified |
-| **Total Test Suite** | | **128 Passing** | **All Passing** |
+## 🧠 Adaptive risk engine
 
----
+Instead of fixing a formula forever, the model keeps learning from what really happened. It only goes live if it earns it.
 
-## 🚀 Quick Start Guide
+```mermaid
+flowchart LR
+    O["📥 Real outcomes<br/>reported"] --> T["Train challenger"]
+    T --> V{"Beats the formula<br/>on later, unseen orders?"}
+    V -- Yes --> L["✅ New model goes live"]
+    V -- No --> F["Keep current scoring,<br/>log the rejected run"]
+    L --> S["Score = chance of miss<br/>× priority weight"]
+    F --> S
+    S --> A["📱 Mobile app shows score,<br/>source and reasons"]
+    A --> O
 
-### 1. Smart Contract & Hardhat
+    classDef good fill:#16A34A,stroke:#166534,color:#FFFFFF
+    classDef flow fill:#2563EB,stroke:#1E40AF,color:#FFFFFF
+    class L good
+    class O,T,S,A flow
+```
+
+- **Falls back safely:** with too little data or no proven model, scoring uses the PRD formula, `0.35D + 0.30S + 0.20I + 0.15P`.
+- **Avoids leakage:** features only use outcomes known at the time of each order.
+- **Explains itself:** each score lists the factors behind it and the model version that produced it.
+
+### Results so far
+
+| Dataset | Formula PR-AUC | ML PR-AUC | Decision |
+|---|---:|---:|---|
+| Synthetic demo: after a quarter of suppliers worsen | 0.558 | **0.671** | Went live |
+| [DataCo](https://data.mendeley.com/datasets/8gx2fvg2k6/5) public dataset (172,765 orders) | 0.720 | **0.836** | Went live |
+| Undated logistics CSV | 0.718 | 0.714 | Rejected, no real signal |
+
+> [!IMPORTANT]
+> These don't yet show ML beating the full formula in real operations. The synthetic data was built for this project and favours ML, and on DataCo the formula only had its deadline input. A fair test needs real records with all four formula inputs.
+
+## 🗄️ Database
+
+A multi-tenant PostgreSQL schema of **52 tables** across seven domains, managed with Alembic migrations.
+
+```mermaid
+erDiagram
+    SUPPLIERS ||--o{ PURCHASE_ORDERS : receives
+    PURCHASE_ORDERS ||--o{ SHIPMENTS : "fulfilled by"
+    SHIPMENTS ||--o{ SHIPMENT_ITEMS : carries
+    SHIPMENT_ITEMS ||--o{ FULFILMENT_ALLOCATIONS : "supplies"
+    INVENTORY ||--o{ FULFILMENT_ALLOCATIONS : "supplies"
+    ORDER_ITEMS ||--o{ FULFILMENT_ALLOCATIONS : "needs"
+    CUSTOMER_ORDERS ||--o{ ORDER_ITEMS : contains
+    ORDER_ITEMS ||--o{ RISK_ASSESSMENTS : "scored in"
+    DISRUPTIONS ||--o{ RECOVERY_PLANS : "answered by"
+    RECOVERY_PLANS ||--o{ APPROVALS : "decided in"
+    RECOVERY_PLANS ||--o{ EXECUTION_RUNS : "executed in"
+```
+
+Critical rules live in the database itself, so a bug in the app can't break them:
+
+- 🚫 A plan's creator can't approve it, and the creator on an approval can't be faked
+- 🧾 Audit records are append-only and hash-chained, with triggers blocking edits
+- 📦 Available stock is calculated by the database, and stock can't be double-booked
+- 🔁 Duplicate events, duplicate approvals and repeated execution steps are rejected
+
+**📘 Full reference, with every domain diagram: [docs/DATABASE.md](docs/DATABASE.md)**
+
+## 📊 Project status
+
+| Area | State | Notes |
+|---|---|---|
+| Smart contract | ✅ Deployed | On Polygon Amoy; see [blockchain/README.md](blockchain/README.md) |
+| Blockchain API | ✅ Built | Hashing, wallet linking, transaction tracking, verification |
+| Adaptive risk engine | ✅ Built | Training, promotion gate, fallback, live scoring in the app |
+| Database schema | ✅ Built | Rule tests and migrations pass on PostgreSQL 18 and SQLite |
+| Login and roles | ✅ Built | Argon2, JWT and role checks for the workflow API; older risk and blockchain routes still trust headers |
+| Carrier event ingestion | ✅ Built | Authenticated webhook with duplicate and out-of-order handling |
+| Disruption and impact | ✅ Built | Traces delays to the order lines they really affect |
+| Recovery suggestions | 🟡 Partial | Rule-checked and ranked by risk; OR-Tools and LLM summaries aren't built |
+| Approvals and execution | ✅ Built | Separation of duties, simulated execution, audit chain |
+| On-chain anchoring | 🟡 Partial | Code exists but hasn't been run on a live chain; the app says so until it's confirmed |
+| Mobile app | 🟡 Partial | Analyst and manager flows use live data; warehouse and supplier screens are still mock |
+
+> [!WARNING]
+> **Demo only.** On-chain signing uses server-held testnet wallets instead of user wallets, and all data is labelled demo data. TRUSTCHAIN is now app-only, so use Android or iOS. The web build crashes because `react-native-maps` has no web support.
+
+## 🚀 Quick start
+
+**You'll need:** Python 3.11+, Node.js 20+, and Expo Go on your phone.
+
+<details open>
+<summary><b>1. Backend</b></summary>
+
 ```bash
-cd blockchain
-npm install
-npx hardhat test       # Runs 94 unit & governance tests
-```
-
-### 2. Backend API
-```bash
-# In repository root
+python -m venv backend/.venv
+source backend/.venv/bin/activate      # Windows: backend\.venv\Scripts\activate
 pip install -r backend/requirements.txt
-python -m pytest backend/tests/ -v        # Runs 34 Python tests
-uvicorn backend.app.main:app --reload --port 8000
+
+# Create the database, then load demo data and train the demo risk model
+alembic -c backend/alembic.ini upgrade head
+python -m backend.app.ops.cli seed
+
+# Trigger the demo shipment delay at any time (seed again to reset)
+python -m backend.app.ops.cli event
+
+# Start the API, reachable from your phone. Docs at http://localhost:8000/docs
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 ```
 
-### 3. Web Verification Centre & Governance UI
-```bash
-cd blockchain/frontend
-npm install
-npm run dev            # Serves on http://localhost:5173
-```
+</details>
 
-### 4. Mobile Application (Expo / React Native)
+<details open>
+<summary><b>2. Mobile app</b></summary>
+
 ```bash
-# In repository root
 npm install
 npx expo start
 ```
 
----
+Scan the QR code with your phone on the same Wi-Fi, and allow port 8000 through your firewall if asked. Sign in as `analyst@trustchain.com` or `manager@trustchain.com` with the demo password `password123`. If the backend is off, the app says so and labels scores as sample data.
 
-## 🔒 Security & Privacy
+</details>
 
-- Private keys, seed phrases, and live RPC secrets are strictly excluded via `.gitignore`.
-- Refer to `.env.example` in root, `blockchain/`, and `blockchain/frontend/` for configuration templates.
-- Backend never holds custodial private keys; all transactions are signed client-side via MetaMask or authorized mobile wallets.
+<details>
+<summary><b>3. Blockchain</b></summary>
 
----
+```bash
+cd blockchain
+npm install
+npx hardhat test
+```
+
+Deployment details are in [blockchain/README.md](blockchain/README.md).
+
+</details>
+
+<details>
+<summary><b>4. Verification portal</b></summary>
+
+```bash
+cd blockchain/frontend
+npm install
+npm run dev      # http://localhost:5173
+```
+
+</details>
+
+<details>
+<summary><b>Environment variables</b></summary>
+
+Copy [`.env.example`](.env.example) to `.env`. Everything has a local default except blockchain deployment keys, so you can skip this at first. Never commit `.env`.
+
+</details>
+
+## 🧪 Testing
+
+```bash
+python -m pytest backend/tests -v      # Backend, risk engine and database rules
+npx tsc --noEmit                       # Mobile app types
+cd blockchain && npx hardhat test      # Smart contracts
+```
+
+The backend suite has **87 tests**, and the database tests try to break each rule rather than only checking the happy path.
+
+## 📁 Project structure
+
+```text
+.
+├── src/                    # 📱 Mobile app (Expo Router)
+│   ├── app/                #    Screens, grouped by role
+│   └── features/           #    Analyst, manager and warehouse code
+├── backend/                # ⚡ FastAPI
+│   ├── app/
+│   │   ├── models/         #    Database schema, by domain
+│   │   ├── risk/           #    Adaptive ML risk engine
+│   │   └── blockchain/     #    Hashing, wallets, transactions
+│   ├── migrations/         #    Alembic migrations
+│   └── tests/
+├── blockchain/             # ⛓️ Solidity contract and verification portal
+├── docs/DATABASE.md        # 📘 Schema reference
+├── disruption.ipynb        # 🔬 Original ML exploration
+└── TRUSTCHAIN_PRD_v2.0.md  # 📋 Full product specification
+```
+
+<sub>`TRUSTCHAIN_Basic_Framework/` is an early starter kept for reference only. The app doesn't use it.</sub>
+
+## 🗺️ Roadmap
+
+```mermaid
+flowchart LR
+    P1["1️⃣ Foundation<br/>schema ✅<br/>login and roles"] --> P2["2️⃣ Operational data<br/>APIs, imports,<br/>demo data"]
+    P2 --> P3["3️⃣ Event ingestion<br/>carrier webhook"]
+    P3 --> P4["4️⃣ Intelligence<br/>detection, impact"]
+    P4 --> P5["5️⃣ Recovery<br/>AI, optimizer"]
+    P5 --> P6["6️⃣ Governance<br/>approvals, execution"]
+    P6 --> P7["7️⃣ End-to-end demo<br/>real mobile data,<br/>on-chain evidence"]
+```
+
+## 🔒 Security
+
+- **Secrets stay out of git:** private keys, `.env` files and datasets are ignored.
+- **No personal data on-chain:** only 32-byte hashes are anchored.
+- **Non-custodial:** the backend holds no private keys, and wallets sign on the client.
 
 ## 📄 License
 
-MIT License. Designed and engineered for the OVERCLOCK '26 Hackathon.
+MIT. See [LICENSE](LICENSE).
+
+<div align="center">
+<br/>
+<sub>Every disruption should lead to an understood impact, every recovery recommendation should be feasible, and every critical decision should be accountable.</sub>
+</div>

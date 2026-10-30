@@ -14,7 +14,7 @@ function describe(status: RiskStatus, source?: OrderRiskSource): string {
   if (status === 'unavailable' || !source) return 'Risk service offline. Scores below are sample data, not calculated.';
   const method = source.kind === 'ml' ? `ML model v${source.modelVersion}` : 'PRD risk formula (no model has beaten it yet)';
   const synthetic = source.dataSources.includes('synthetic') ? ', trained on synthetic demo data' : '';
-  return `Live scores from ${source.kind === 'ml' ? method + synthetic : method}. Order inputs are sample data.`;
+  return `Live scores from ${source.kind === 'ml' ? method + synthetic : method}. Orders are demo data.`;
 }
 
 export const RiskSourceNote: React.FC<RiskSourceNoteProps> = ({ status, source, onRetry }) => {

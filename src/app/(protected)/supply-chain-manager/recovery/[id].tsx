@@ -35,7 +35,8 @@ export default function RecoveryExecutionDetailScreen() {
 
   const plan =
     managerService.getRecoveryPlanById(id || 'RP-004') ||
-    managerService.getRecoveryPlanById('RP-001')!;
+    managerService.getRecoveryPlanById('RP-001') ||
+    managerService.getRecoveryPlans()[0];
 
   const milestones = [
     {

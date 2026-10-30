@@ -25,9 +25,11 @@ import ManagerBottomNav from '../../../features/supply-chain-manager/components/
 import ManagerHeader from '../../../features/supply-chain-manager/components/ManagerHeader';
 import managerService from '../../../features/supply-chain-manager/services/managerService';
 import { AuditEvent } from '../../../features/supply-chain-manager/types';
+import { useSyncVersion } from '@/services/backendSync';
 
 export default function AuditActivityLogScreen() {
   const router = useRouter();
+  useSyncVersion();
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
@@ -59,7 +61,7 @@ export default function AuditActivityLogScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <ManagerHeader
         title="Audit & Activity Log"
-        subtitle="Immutable ledger of manager approvals, analyst submissions & incident responses"
+        subtitle="Append-only record of manager approvals, analyst submissions & incident responses"
       />
 
       <View style={styles.container}>
@@ -69,13 +71,13 @@ export default function AuditActivityLogScreen() {
             <ShieldCheck size={20} color="#16A36A" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.integrityTitle}>Tamper-Proof Audit Trail</Text>
+            <Text style={styles.integrityTitle}>Hash-Chained Audit Trail</Text>
             <Text style={styles.integritySubtitle}>
-              {verifiedCount} of {totalEvents} entries verified against SHA-256 cryptographic hashes
+              {verifiedCount} of {totalEvents} entries confirmed on-chain
             </Text>
           </View>
           <View style={styles.integrityBadge}>
-            <Text style={styles.integrityBadgeText}>SOC-2 Ready</Text>
+            <Text style={styles.integrityBadgeText}>Append-only</Text>
           </View>
         </View>
 

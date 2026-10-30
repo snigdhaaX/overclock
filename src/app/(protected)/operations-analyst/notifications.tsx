@@ -27,9 +27,11 @@ import OperationsHeader from '../../../features/operations-analyst/components/Op
 import SeverityBadge from '../../../features/operations-analyst/components/SeverityBadge';
 import operationsService from '../../../features/operations-analyst/services/operationsService';
 import { NotificationItem } from '../../../features/operations-analyst/types';
+import { useSyncVersion } from '@/services/backendSync';
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  useSyncVersion();
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'critical'>('all');
   const [refreshKey, setRefreshKey] = useState(0);
 

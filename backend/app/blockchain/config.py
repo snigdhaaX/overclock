@@ -1,5 +1,9 @@
 import os
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
+
+# Auth, webhook and chain settings read the environment directly, so load .env first.
+load_dotenv()
 
 class BlockchainSettings(BaseSettings):
     # RPC and Network

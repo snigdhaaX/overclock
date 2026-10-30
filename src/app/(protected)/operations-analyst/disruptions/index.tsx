@@ -18,9 +18,11 @@ import OperationsHeader from '../../../../features/operations-analyst/components
 import SearchBar from '../../../../features/operations-analyst/components/SearchBar';
 import operationsService from '../../../../features/operations-analyst/services/operationsService';
 import { SeverityLevel } from '../../../../features/operations-analyst/types';
+import { useSyncVersion } from '@/services/backendSync';
 
 export default function DisruptionsListScreen() {
   const router = useRouter();
+  useSyncVersion();
   const [search, setSearch] = useState('');
   const [selectedTypeChip, setSelectedTypeChip] = useState('All');
   const [selectedSeverity, setSelectedSeverity] = useState<string>('All');

@@ -26,9 +26,11 @@ import OperationsHeader from '../../../../features/operations-analyst/components
 import StatusBadge from '../../../../features/operations-analyst/components/StatusBadge';
 import TimelineView, { TimelineItem } from '../../../../features/operations-analyst/components/TimelineView';
 import operationsService from '../../../../features/operations-analyst/services/operationsService';
+import { useSyncVersion } from '@/services/backendSync';
 
 export default function ExecutionTrackingScreen() {
   const router = useRouter();
+  useSyncVersion();
   const trackingData = operationsService.getExecutionTracking();
   const [reportedIssue, setReportedIssue] = useState(false);
 

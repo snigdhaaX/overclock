@@ -21,8 +21,17 @@ class ManagerService {
   private orderRoutes: OrderRoute[] = [...MOCK_ORDER_ROUTES];
   private suppliers: SupplierProfile[] = [...MOCK_SUPPLIERS];
   private warehouses: WarehouseProfile[] = [...MOCK_WAREHOUSES];
-  private auditEvents: AuditEvent[] = [...MOCK_AUDIT_EVENTS];
+  // Sample events are never shown as verified, because nothing was really anchored.
+  private auditEvents: AuditEvent[] = MOCK_AUDIT_EVENTS.map((e) => ({ ...e, verificationStatus: 'unverified' as const, txHash: undefined }));
   private healthMetrics: NetworkHealthMetrics = { ...MOCK_HEALTH_METRICS };
+  private connected = false;
+
+  /** Replaces sample data with live data from the backend. */
+  hydrate(data: any) {
+    this.connected = true;
+    this.auditEvents = data.auditEvents;
+    this.healthMetrics = { ...this.healthMetrics, ...data.health };
+  }
 
   // ==========================================
   // COMMAND CENTRE & HEALTH
@@ -32,9 +41,10 @@ class ManagerService {
     const pendingCount = plans.filter((p) => p.status === 'Pending Approval').length;
     const activeCount = plans.filter((p) => p.status === 'In Progress' || p.status === 'Approved').length;
 
+    if (this.connected) return { ...this.healthMetrics };
     return {
       ...this.healthMetrics,
-      pendingApprovals: Math.max(pendingCount, 2),
+      pendingApprovals: pendingCount,
       activeRecoveryPlans: activeCount,
     };
   }
@@ -170,8 +180,7 @@ class ManagerService {
       relatedEntityId: plan.id,
       relatedEntityType: 'plan',
       description: `Formally authorized ${plan.planName} (Policy threshold sign-off: $${plan.estimatedCost.toLocaleString()}).`,
-      verificationStatus: 'verified',
-      txHash: `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`,
+      verificationStatus: 'unverified',
     };
     this.auditEvents.unshift(newEvent);
 
@@ -207,8 +216,7 @@ class ManagerService {
       relatedEntityId: plan.id,
       relatedEntityType: 'plan',
       description: `Rejected ${plan.planName}. Reason: ${payload.reason}`,
-      verificationStatus: 'verified',
-      txHash: `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`,
+      verificationStatus: 'unverified',
     };
     this.auditEvents.unshift(newEvent);
 
@@ -242,7 +250,7 @@ class ManagerService {
       relatedEntityId: plan.id,
       relatedEntityType: 'plan',
       description: `Returned ${plan.planName} to Analyst with revision notes: "${payload.changeRequirements}"`,
-      verificationStatus: 'verified',
+      verificationStatus: 'unverified',
     };
     this.auditEvents.unshift(newEvent);
 

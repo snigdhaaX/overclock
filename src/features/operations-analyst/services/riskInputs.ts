@@ -123,6 +123,7 @@ export function toRiskSource(result: RiskResponse): OrderRiskSource {
 }
 
 export function applyRisk(order: AffectedOrder, result: RiskResponse | undefined): AffectedOrder {
+  if (order.riskSource && order.riskSource.kind !== 'sample') return order;
   if (!result) return { ...order, riskSource: SAMPLE_SOURCE };
   return {
     ...order,

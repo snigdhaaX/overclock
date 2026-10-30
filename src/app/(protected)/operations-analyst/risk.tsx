@@ -27,9 +27,11 @@ import RiskSourceNote from '../../../features/operations-analyst/components/Risk
 import { useOrderRisk } from '../../../features/operations-analyst/hooks/useOrderRisk';
 import operationsService from '../../../features/operations-analyst/services/operationsService';
 import type { SeverityLevel } from '../../../features/operations-analyst/types';
+import { useSyncVersion } from '@/services/backendSync';
 
 export default function RiskIntelligenceScreen() {
   const router = useRouter();
+  useSyncVersion();
   const [activeTab, setActiveTab] = useState<'order' | 'inventory' | 'supplier'>('order');
 
   const sampleRiskData = operationsService.getRiskIntelligence();

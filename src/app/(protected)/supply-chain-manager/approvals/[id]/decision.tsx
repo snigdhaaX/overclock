@@ -22,10 +22,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
+import ChainProof from '@/features/supply-chain-manager/components/ChainProof';
 import managerService from '@/features/supply-chain-manager/services/managerService';
+import { approvePlan, confirmExecution, isBackendOnline, rejectPlan, requestRevision, useSyncVersion } from '@/services/backendSync';
 
 export default function ApprovalDecisionScreen() {
   const router = useRouter();
+  useSyncVersion();
   const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
 
   const [decisionMode, setDecisionMode] = useState<'approve' | 'reject' | 'changes'>(
@@ -42,12 +45,49 @@ export default function ApprovalDecisionScreen() {
 
   const plan =
     managerService.getRecoveryPlanById(id || 'RP-001') ||
-    managerService.getRecoveryPlanById('RP-001')!;
+    managerService.getRecoveryPlanById('RP-001') ||
+    managerService.getRecoveryPlans()[0];
 
-  const handleExecuteDecision = () => {
+  const [executing, setExecuting] = useState(false);
+  const [executed, setExecuted] = useState(false);
+
+  const handleConfirmExecution = async () => {
+    setErrorMessage('');
+    setExecuting(true);
+    try {
+      await confirmExecution(plan.id);
+      setExecuted(true);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Execution could not start.');
+    } finally {
+      setExecuting(false);
+    }
+  };
+
+  const handleExecuteDecision = async () => {
     setErrorMessage('');
 
     try {
+      if (isBackendOnline()) {
+        if (decisionMode === 'approve') {
+          await approvePlan(plan.id, approvalComments);
+        } else if (decisionMode === 'reject') {
+          if (!rejectionReason.trim()) {
+            setErrorMessage('Please provide a mandatory reason for plan rejection.');
+            return;
+          }
+          await rejectPlan(plan.id, rejectionReason);
+        } else {
+          if (!changeRequirements.trim()) {
+            setErrorMessage('Please specify required modifications before returning to analyst.');
+            return;
+          }
+          await requestRevision(plan.id, changeRequirements);
+        }
+        setDecisionCompleted(true);
+        return;
+      }
+
       if (decisionMode === 'approve') {
         managerService.approvePlan({
           planId: plan.id,
@@ -121,11 +161,22 @@ export default function ApprovalDecisionScreen() {
 
             <Text style={styles.successDesc}>
               {decisionMode === 'approve'
-                ? `Plan ${plan.id} has been authorized and dispatched to Carlos Mendez (WH-BLR) and BlueDart Logistics. Audit transaction logged.`
+                ? `Plan ${plan.id} is approved. Confirm execution to run its recovery actions.`
                 : decisionMode === 'reject'
                 ? `Plan ${plan.id} has been rejected. Mandatory reason recorded on audit trail.`
-                : `Plan ${plan.id} has been returned to Anishwath with your change requirements.`}
+                : `Plan ${plan.id} has been returned to its author with your change requirements.`}
             </Text>
+
+            {isBackendOnline() ? <ChainProof planId={plan.id} txHash={(plan as any).txHash} /> : null}
+
+            {isBackendOnline() && decisionMode === 'approve' ? (
+              <Pressable style={styles.successPrimaryBtn} onPress={handleConfirmExecution} disabled={executing || executed} accessibilityRole="button">
+                <Text style={styles.successPrimaryBtnText}>
+                  {executed ? 'Recovery actions completed (simulated)' : executing ? 'Running…' : 'Confirm execution'}
+                </Text>
+              </Pressable>
+            ) : null}
+            {decisionCompleted && errorMessage ? <Text style={{ color: '#DC2626', fontSize: 13, textAlign: 'center' }}>{errorMessage}</Text> : null}
 
             <View style={styles.successButtonsRow}>
               <Pressable

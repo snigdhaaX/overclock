@@ -67,7 +67,7 @@ export const AuditEventCard: React.FC<AuditEventCardProps> = ({ event }) => {
       <View style={styles.ledgerRow}>
         <View style={styles.ledgerStatus}>
           <ShieldCheck size={13} color="#16A36A" style={{ marginRight: 4 }} />
-          <Text style={styles.ledgerStatusText}>Cryptographic Hash Verified</Text>
+          <Text style={styles.ledgerStatusText}>{event.verificationStatus === 'verified' ? 'Confirmed on-chain' : event.verificationStatus === 'pending' ? 'On-chain confirmation pending' : 'Recorded in audit log'}</Text>
         </View>
         {event.txHash && (
           <Text style={styles.txHashText} numberOfLines={1}>

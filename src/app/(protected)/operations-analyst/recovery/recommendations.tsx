@@ -15,11 +15,13 @@ import OperationsHeader from '../../../../features/operations-analyst/components
 import RecoveryPlanCard from '../../../../features/operations-analyst/components/RecoveryPlanCard';
 import operationsService from '../../../../features/operations-analyst/services/operationsService';
 import { RecoveryPlan } from '../../../../features/operations-analyst/types';
+import { useSyncVersion } from '@/services/backendSync';
 
 export default function RecoveryRecommendationsScreen() {
   const router = useRouter();
+  useSyncVersion();
   const [activeTab, setActiveTab] = useState<'all' | 'ai' | 'alternative'>('all');
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('RP-001');
+  const [selectedPlanId, setSelectedPlanId] = useState<string>(() => operationsService.getRecoveryPlans()[0]?.id ?? 'RP-001');
 
   const plans = operationsService.getRecoveryPlans(activeTab);
 
@@ -81,7 +83,7 @@ export default function RecoveryRecommendationsScreen() {
       <View style={styles.noticeBanner}>
         <Info size={16} color="#2563EB" style={{ marginRight: 8, marginTop: 1 }} />
         <Text style={styles.noticeText}>
-          AI models formulate mathematical optimization recommendations. Formal plan activation requires review and submit for authorised manager approval.
+            Ranked suggestions, checked against free stock, capacity and deadlines. A manager must approve a plan before it runs.
         </Text>
       </View>
 

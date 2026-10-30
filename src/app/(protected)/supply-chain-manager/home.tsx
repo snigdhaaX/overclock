@@ -39,13 +39,15 @@ import ManagerBottomNav from '@/features/supply-chain-manager/components/Manager
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
 import ManagerMetricCard from '@/features/supply-chain-manager/components/ManagerMetricCard';
 import managerService from '@/features/supply-chain-manager/services/managerService';
+import { useSyncVersion } from '@/services/backendSync';
 
 export default function ManagerHomeScreen() {
   const router = useRouter();
+  useSyncVersion();
   const [refreshing, setRefreshing] = useState(false);
 
   const health = managerService.getHealthMetrics();
-  const criticalDisruption = managerService.getDisruptionById('SHP-101');
+  const criticalDisruption = managerService.getDisruptionById('SHP-101') ?? managerService.getDisruptions()[0];
   const pendingPlans = managerService.getRecoveryPlans('pending');
 
   const onRefresh = () => {

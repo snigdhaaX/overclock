@@ -19,9 +19,11 @@ import RiskSourceNote from '../../../features/operations-analyst/components/Risk
 import SearchBar from '../../../features/operations-analyst/components/SearchBar';
 import { useOrderRisk } from '../../../features/operations-analyst/hooks/useOrderRisk';
 import operationsService from '../../../features/operations-analyst/services/operationsService';
+import { useSyncVersion } from '@/services/backendSync';
 
 export default function AffectedOrdersScreen() {
   const router = useRouter();
+  useSyncVersion();
   const [search, setSearch] = useState('');
   const [selectedSeverity, setSelectedSeverity] = useState('All');
   const [refreshing, setRefreshing] = useState(false);

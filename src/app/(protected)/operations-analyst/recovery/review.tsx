@@ -28,6 +28,7 @@ import ActionCard from '../../../../features/operations-analyst/components/Actio
 import OperationsHeader from '../../../../features/operations-analyst/components/OperationsHeader';
 import StatusBadge from '../../../../features/operations-analyst/components/StatusBadge';
 import operationsService from '../../../../features/operations-analyst/services/operationsService';
+import { isBackendOnline, submitPlan as submitPlanToBackend } from '../../../../services/backendSync';
 import { RecoveryPlan } from '../../../../features/operations-analyst/types';
 
 export default function PlanReviewAndSubmitScreen() {
@@ -48,10 +49,18 @@ export default function PlanReviewAndSubmitScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm & Dispatch',
-          onPress: () => {
-            const updated = operationsService.submitPlanForApproval(plan.id);
-            setPlan({ ...updated });
-            setSubmitted(true);
+          onPress: async () => {
+            try {
+              if (isBackendOnline()) {
+                await submitPlanToBackend(plan.id);
+                setPlan({ ...(operationsService.getRecoveryPlanById(plan.id) ?? plan) });
+              } else {
+                setPlan({ ...operationsService.submitPlanForApproval(plan.id) });
+              }
+              setSubmitted(true);
+            } catch (err: any) {
+              Alert.alert('Plan not submitted', err?.message ?? 'Please try again.');
+            }
           },
         },
       ]

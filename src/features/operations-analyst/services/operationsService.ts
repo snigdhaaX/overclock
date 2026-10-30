@@ -20,6 +20,18 @@ import {
 } from '../types';
 
 class OperationsService {
+  private connected = false;
+
+  /** Replaces sample data with live data from the backend. */
+  hydrate(data: any) {
+    this.connected = true;
+    this.disruptions = data.disruptions;
+    this.orders = data.orders;
+    this.recoveryPlans = data.recoveryPlans;
+    this.notifications = data.notifications;
+    if (data.execution) this.executionData = data.execution;
+  }
+
   private disruptions: Disruption[] = [...MOCK_DISRUPTIONS];
   private orders: AffectedOrder[] = [...MOCK_AFFECTED_ORDERS];
   private recoveryPlans: RecoveryPlan[] = [...MOCK_RECOVERY_PLANS];
@@ -68,6 +80,20 @@ class OperationsService {
   }
 
   getImpactSummary(disruptionId: string): ImpactSummary {
+    if (this.connected) {
+      const d = this.getDisruptionById(disruptionId) ?? this.disruptions[0];
+      const lines = this.orders.filter((o) => o.associatedDisruptionId === d?.id);
+      return {
+        disruptionId,
+        affectedOrders: lines.length,
+        totalUnitsAtRisk: lines.reduce((sum, o) => sum + o.units, 0),
+        estimatedDelay: d?.estimatedDelay ?? '',
+        revenueAtRisk: lines.reduce((sum, o) => sum + o.revenue, 0),
+        supplierImpact: { supplier: d?.supplier ?? '', delay: d?.estimatedDelay ?? '', details: d?.reason ?? '', severity: d?.severity ?? 'Low' },
+        inboundImpact: { shipment: d?.reference ?? '', carrier: d?.carrier ?? '', units: lines.reduce((sum, o) => sum + o.units, 0), severity: d?.severity ?? 'Low' },
+        warehouseImpact: { warehouse: d?.location ?? '', bufferRemaining: 'See inventory for live stock', severity: d?.severity ?? 'Low' },
+      };
+    }
     if (MOCK_IMPACT_SUMMARIES[disruptionId]) {
       return MOCK_IMPACT_SUMMARIES[disruptionId];
     }

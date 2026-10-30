@@ -29,9 +29,11 @@ import ManagerBottomNav from '@/features/supply-chain-manager/components/Manager
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
 import managerService from '@/features/supply-chain-manager/services/managerService';
 import { RecoveryPlan } from '@/features/supply-chain-manager/types';
+import { useSyncVersion } from '@/services/backendSync';
 
 export default function ApprovalCentreScreen() {
   const router = useRouter();
+  useSyncVersion();
   const [selectedFilter, setSelectedFilter] = useState<'All' | 'Pending' | 'High Priority' | 'Approved' | 'Completed'>('Pending');
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);

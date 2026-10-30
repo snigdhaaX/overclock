@@ -14,8 +14,14 @@ export function useOrderRisk(orders: AffectedOrder[]) {
   const [status, setStatus] = useState<RiskStatus>('loading');
   const [attempt, setAttempt] = useState(0);
   const key = orders.map((o) => o.id).join('|');
+  // Live orders arrive already scored by the backend.
+  const alreadyScored = orders.length > 0 && orders.every((o) => o.riskSource && o.riskSource.kind !== 'sample');
 
   useEffect(() => {
+    if (alreadyScored) {
+      setStatus('live');
+      return;
+    }
     let cancelled = false;
     const now = Date.now();
     const cached: Record<string, RiskResponse> = {};
@@ -54,7 +60,7 @@ export function useOrderRisk(orders: AffectedOrder[]) {
     };
     // orders is rebuilt on every render, so the joined ids are what identify a real change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, attempt]);
+  }, [key, attempt, alreadyScored]);
 
   const scored = useMemo(() => orders.map((o) => applyRisk(o, results[o.id])), [orders, results]);
   const firstSource = scored.find((o) => o.riskSource?.kind !== 'sample')?.riskSource;

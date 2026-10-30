@@ -29,9 +29,11 @@ import MetricCard from '../../../features/operations-analyst/components/MetricCa
 import OperationsBottomNav from '../../../features/operations-analyst/components/OperationsBottomNav';
 import OperationsHeader from '../../../features/operations-analyst/components/OperationsHeader';
 import operationsService from '../../../features/operations-analyst/services/operationsService';
+import { useSyncVersion } from '@/services/backendSync';
 
 export default function OperationsAnalystHomeScreen() {
   const router = useRouter();
+  useSyncVersion();
   const [refreshing, setRefreshing] = useState(false);
 
   const disruptions = operationsService.getDisruptions();

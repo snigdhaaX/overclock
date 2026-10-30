@@ -2,6 +2,8 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { AuthError, AuthSession, AuthTokens, LoginCredentials, RegistrationPayload, User } from '../types/auth';
 import { UserRole } from '../types/roles';
+import { ApiError, apiRequest, NetworkError, setAccessToken } from './apiClient';
+import { startSync, stopSync } from './backendSync';
 
 const TOKEN_KEY = 'trustchain_auth_tokens';
 const USER_KEY = 'trustchain_user_profile';
@@ -162,6 +164,7 @@ class AuthService {
     const user = await TokenStorage.getUser();
     if (tokens && user) {
       this.currentSession = { user, tokens };
+      this.connectIfLive(tokens);
       return this.currentSession;
     }
     return null;
@@ -175,7 +178,36 @@ class AuthService {
     return this.currentSession?.user ?? null;
   }
 
+  private connectIfLive(tokens: AuthTokens) {
+    // Sample sessions have tc_jwt_ tokens, which the server would reject.
+    if (tokens.accessToken.startsWith('tc_jwt_')) return;
+    setAccessToken(tokens.accessToken);
+    startSync();
+  }
+
   async login(credentials: LoginCredentials): Promise<AuthSession> {
+    try {
+      const session = await apiRequest<AuthSession>('/auth/login', {
+        method: 'POST',
+        body: { email: credentials.email, password: credentials.password, requested_role: credentials.requestedRole },
+      });
+      this.currentSession = session;
+      setAccessToken(session.tokens.accessToken);
+      await startSync();
+      if (credentials.rememberMe !== false) {
+        await TokenStorage.saveTokens(session.tokens);
+        await TokenStorage.saveUser(session.user);
+      }
+      return session;
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const authError: AuthError = { code: err.code as AuthError['code'], message: err.message };
+        throw authError;
+      }
+      if (!(err instanceof NetworkError)) throw err;
+      // Server unreachable: continue with sample data, which every screen labels as offline.
+    }
+
     // Simulate real network latency (500ms)
     await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -326,6 +358,12 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
+    const refreshToken = this.currentSession?.tokens.refreshToken;
+    if (refreshToken && !refreshToken.startsWith('tc_jwt_')) {
+      apiRequest('/auth/logout', { method: 'POST', body: { refresh_token: refreshToken } }).catch(() => {});
+    }
+    stopSync();
+    setAccessToken(null);
     this.currentSession = null;
     await TokenStorage.clear();
   }
