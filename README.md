@@ -175,13 +175,13 @@ TRUSTCHAIN delivers an 81-screen mobile architecture built with **Expo SDK 58**,
 | Component | Framework / Tool | Tests / Checks | Status |
 |---|---|---|---|
 | Smart Contracts | Hardhat / Mocha / Chai | 94 passing | ✅ 100% Green |
-| Backend & Governance Services | Pytest / Web3.py / FastAPI | 34 passing | ✅ 100% Green |
+| Backend & Governance Services | Pytest / Web3.py / FastAPI | 123 passing | ✅ 100% Green |
 | Frontend Verification Centre | Vite / TypeScript | 0 errors | ✅ Production build verified |
 | Mobile TypeScript Compilation | `npx tsc --noEmit` | 0 errors | ✅ 100% Strict Type Safety |
 | Mobile Code Quality & Linter | `npx expo lint --quiet` | 0 errors / 0 warnings | ✅ React 19 Clean Compliance |
 | Expo Configuration & Health | `npx expo-doctor` | 20/20 checks passed | ✅ Zero Incompatibilities |
 | Mobile JS Bundle Compilation | Metro Bundler (Android) | Full bundle built | ✅ Ready for Production |
-| **Total Test Suite** | | **128 Passing + 3 Mobile Checks** | **All 100% Passing** |
+| **Total Test Suite** | | **217 Passing + 4 Mobile Checks** | **All 100% Passing** |
 
 ---
 

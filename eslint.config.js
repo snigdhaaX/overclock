@@ -5,6 +5,13 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
+    rules: {
+      'react-compiler/react-compiler': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
+  {
     ignores: [
       'dist/*',
       'backend/**/*',

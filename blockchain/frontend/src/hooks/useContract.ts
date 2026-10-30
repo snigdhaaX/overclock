@@ -65,6 +65,27 @@ export const useContract = (providedContractAddress?: string) => {
         throw new Error("Valid smart contract address is not configured or deployed.");
       }
 
+      // GOVERNANCE NETWORK SAFETY GUARD:
+      // Polygon Amoy (80002) is strictly read-only inspection.
+      // All transactional mutations are restricted to Local Hardhat (31337).
+      const network = await provider.getNetwork();
+      const currentChainId = Number(network.chainId);
+
+      if (currentChainId === 80002) {
+        setIsSubmitting(false);
+        const amoyBlockMsg =
+          "Transaction Blocked: Polygon Amoy (Chain ID 80002) is strictly configured for read-only governance inspection. Live transactions must execute on Local Hardhat DevNet (Chain ID 31337) to prevent POL expenditure and contract state mutations.";
+        setTxError(amoyBlockMsg);
+        throw new Error(amoyBlockMsg);
+      }
+
+      if (currentChainId !== 31337) {
+        setIsSubmitting(false);
+        const networkErrorMsg = `Transaction Blocked: Unsupported network (Chain ID ${currentChainId}). Live governance transactions are strictly restricted to Local Hardhat DevNet (Chain ID 31337).`;
+        setTxError(networkErrorMsg);
+        throw new Error(networkErrorMsg);
+      }
+
       try {
         const contract = await getContractWithSigner(activeAddress, provider);
 

@@ -190,6 +190,35 @@ export const PlanGovernance: React.FC = () => {
         </div>
       </div>
 
+      {/* Governance Network Safety Banner */}
+      {chainId === 80002 && (
+        <div className="card border-amber-500/50 bg-amber-500/10 text-amber-200 p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <p className="font-semibold text-amber-300">
+              Polygon Amoy (Chain ID 80002) — Read-Only Inspection Mode Active
+            </p>
+            <p className="text-slate-300">
+              On-chain governance records on Amoy can be verified and inspected, but state-mutating transactions (Plan Anchoring, Approvals, Rejections, Execution) are blocked to prevent POL expenditure. To execute live governance lifecycle transactions, connect MetaMask to <strong>Local Hardhat DevNet (Chain ID 31337)</strong>.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {chainId && chainId !== 31337 && chainId !== 80002 && (
+        <div className="card border-rose-500/50 bg-rose-500/10 text-rose-200 p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <p className="font-semibold text-rose-300">
+              Unsupported Network (Chain ID {chainId})
+            </p>
+            <p className="text-slate-300">
+              Please switch MetaMask to <strong>Local Hardhat DevNet (Chain ID 31337)</strong> for live governance transactions or <strong>Polygon Amoy (Chain ID 80002)</strong> for read-only inspection.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Global Contract/Hook Errors */}
       {contractError && (
         <div className="card border-rose-500/40 bg-rose-500/10 text-rose-300 p-4 flex items-center gap-3">
