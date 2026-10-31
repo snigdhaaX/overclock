@@ -1,0 +1,3 @@
+[
+  {"shipment_code": "SHP-300", "supplier_code": "SUP-003", "carrier_code": "CAR-01", "warehouse_code": "WH-MUM", "sku": "SKU-MIC-012", "quantity": 400, "eta": "2026-11-01T12:00:00Z", "origin": "Singapore", "route_risk": 0.8, "weather_severity": 0.7, "customs_hours": 30, "freight_cost": 5000}
+]

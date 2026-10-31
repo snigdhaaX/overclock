@@ -96,6 +96,32 @@ def receipt_status(tx_hash: str) -> Optional[int]:
     return int(receipt["status"]) if receipt else None
 
 
+def receipt_details(tx_hash: str) -> Optional[Dict[str, Any]]:
+    """Status and block from a real receipt. None while pending or when the chain can't be reached."""
+    try:
+        receipt = _client().eth.get_transaction_receipt(tx_hash)
+    except Exception:
+        return None
+    return {"status": int(receipt["status"]), "block": int(receipt["blockNumber"])} if receipt else None
+
+
+def network_info() -> Dict[str, Any]:
+    """What the chain really reports right now, for the app to show."""
+    if not enabled():
+        return {"signingEnabled": False, "connected": False}
+    try:
+        w3 = _client()
+        deployment = _deployment()
+        address = os.getenv("TRUSTCHAIN_CONTRACT_ADDRESS") or deployment["address"]
+        chain_id = int(w3.eth.chain_id)
+        return {
+            "signingEnabled": True, "connected": True, "chainId": chain_id, "network": "Polygon Amoy" if chain_id == 80002 else "Local Hardhat" if chain_id == 31337 else f"Chain {chain_id}",
+            "contract": address, "latestBlock": int(w3.eth.block_number), "contractDeployed": w3.eth.get_code(Web3.to_checksum_address(address)) != b"",
+        }
+    except Exception:
+        return {"signingEnabled": True, "connected": False}
+
+
 def on_chain_hash_matches(plan_key: str, version: int, plan_hash: str) -> Optional[bool]:
     """None when the chain can't be reached or the plan isn't anchored."""
     try:

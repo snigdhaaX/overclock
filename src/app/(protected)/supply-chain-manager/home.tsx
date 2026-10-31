@@ -40,6 +40,8 @@ import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHea
 import ManagerMetricCard from '@/features/supply-chain-manager/components/ManagerMetricCard';
 import managerService from '@/features/supply-chain-manager/services/managerService';
 import { useSyncVersion } from '@/services/backendSync';
+import { LiveChainCard } from '@/components/blockchain/LiveChainCard';
+import { RiskEngineCard } from '@/features/operations-analyst/components/RiskEngineCard';
 
 export default function ManagerHomeScreen() {
   const router = useRouter();
@@ -128,6 +130,11 @@ export default function ManagerHomeScreen() {
               accentColor="#0D9488"
             />
           </View>
+        </View>
+
+        <View style={{ paddingHorizontal: 16 }}>
+          <LiveChainCard />
+          <RiskEngineCard canRetrain={false} />
         </View>
 
         {/* Quick Actions Bar */}

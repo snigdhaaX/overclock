@@ -1,5 +1,6 @@
 """Train, compare against the formula on the same outcome, and promote only on evidence."""
 import hashlib
+import io
 import json
 import os
 from dataclasses import dataclass
@@ -64,7 +65,9 @@ def get_active(db: Session, organization_id: str) -> Optional[RiskModelVersion]:
 
 def load_artifact(record: RiskModelVersion) -> Dict[str, Any]:
     """Returns the fitted model and the typical feature values used to explain its scores."""
-    return joblib.load(record.artifact_path)
+    if record.artifact_path and Path(record.artifact_path).exists():
+        return joblib.load(record.artifact_path)
+    return joblib.load(io.BytesIO(record.artifact_blob))
 
 
 def fit_model(x: pd.DataFrame, y: np.ndarray) -> HistGradientBoostingClassifier:
@@ -89,6 +92,22 @@ def _metrics(y: np.ndarray, scores: np.ndarray, probabilities: np.ndarray) -> Di
         "pr_auc": round(float(average_precision_score(y, scores)), 4),
         "top20_capture": round(_top_capture(y, scores), 4),
         "brier": round(float(brier_score_loss(y, probabilities)), 4),
+        **_classification_metrics(y, probabilities),
+    }
+
+
+def _classification_metrics(y: np.ndarray, probabilities: np.ndarray) -> Dict[str, float]:
+    """At a 50% cut-off. Misses are rare, so accuracy must be read against always guessing "on time"."""
+    predicted = (probabilities >= 0.5).astype(int)
+    true_positive = int(((predicted == 1) & (y == 1)).sum())
+    precision = true_positive / max(int(predicted.sum()), 1)
+    recall = true_positive / max(int(y.sum()), 1)
+    return {
+        "accuracy": round(float((predicted == y).mean()), 4),
+        "baseline_accuracy": round(float(max(y.mean(), 1 - y.mean())), 4),
+        "precision": round(precision, 4),
+        "recall": round(recall, 4),
+        "f1": round(2 * precision * recall / max(precision + recall, 1e-9), 4),
     }
 
 
@@ -253,6 +272,7 @@ def retrain(db: Session, organization_id: str, policy: TrainingPolicy = DEFAULT_
         eval_rows=len(eval_df),
         metrics_json=json.dumps(metrics),
         artifact_path=artifact,
+        artifact_blob=Path(artifact).read_bytes() if artifact else None,
     ))
     db.commit()
     return {"status": status, "version": version, "reason": reason, "metrics": metrics}

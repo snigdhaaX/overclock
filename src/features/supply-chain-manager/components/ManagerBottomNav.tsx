@@ -22,6 +22,7 @@ import {
 import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isBackendOnline } from '@/services/backendSync';
 
 export type ManagerTab = 'overview' | 'network' | 'disruptions' | 'approvals' | 'more';
 
@@ -47,6 +48,9 @@ export const ManagerBottomNav: React.FC<ManagerBottomNavProps> = ({ activeTab })
       setMoreVisible(true);
     }
   };
+
+  // These still read sample data, so they stay out of the menu while live data is available.
+  const SAMPLE_DATA_SCREENS = ['Risk & Business Impact', 'Reports & Analytics', 'Warehouse & Supplier Overview', 'Alternative Supplier Comparison', 'Suppliers Directory'];
 
   const moreItems = [
     {
@@ -240,7 +244,7 @@ export const ManagerBottomNav: React.FC<ManagerBottomNavProps> = ({ activeTab })
             </View>
 
             <View style={styles.moreList}>
-              {moreItems.map((item, index) => {
+              {moreItems.filter((item) => !isBackendOnline() || !SAMPLE_DATA_SCREENS.includes(item.title)).map((item, index) => {
                 const Icon = item.icon;
                 return (
                   <Pressable

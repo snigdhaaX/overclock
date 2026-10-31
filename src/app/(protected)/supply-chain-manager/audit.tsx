@@ -31,7 +31,7 @@ import ManagerBottomNav from '../../../features/supply-chain-manager/components/
 import ManagerHeader from '../../../features/supply-chain-manager/components/ManagerHeader';
 import managerService from '../../../features/supply-chain-manager/services/managerService';
 import { AuditEvent } from '../../../features/supply-chain-manager/types';
-import { useSyncVersion } from '@/services/backendSync';
+import { getLiveData, useSyncVersion } from '@/services/backendSync';
 import { blockchainApi } from '../../../services/blockchainApi';
 import { BlockchainNetworkBadge } from '../../../components/blockchain';
 import { IndexedEvent, TrackedTransaction } from '../../../types/blockchain';
@@ -78,6 +78,12 @@ export default function AuditActivityLogScreen() {
         setChainId(net.chain_id || 80002);
       } catch {
         setNetworkConnected(false);
+      }
+      // The signing chain the workflow really uses wins over the portal's configured network.
+      const liveChain = getLiveData().chain;
+      if (liveChain?.signingEnabled) {
+        setNetworkConnected(liveChain.connected);
+        if (liveChain.chainId) setChainId(liveChain.chainId);
       }
 
       // 2. Fetch indexed blockchain events
@@ -135,8 +141,8 @@ export default function AuditActivityLogScreen() {
           planId: ev.relatedEntityType === 'plan' ? ev.relatedEntityId : undefined,
           actor: ev.actor,
           txHash,
-          blockNumber: null,
-          timestamp: new Date(Date.parse(ev.timestamp.replace(' UTC', ' GMT')) || Date.now()).toISOString(),
+          blockNumber: ev.blockNumber ?? null,
+          timestamp: ev.occurredAt ?? new Date().toISOString(),
           status: ev.verificationStatus === 'verified' ? 'CONFIRMED' : ev.verificationStatus === 'pending' ? 'PENDING' : 'RECORDED',
           details: ev.description,
         });
@@ -347,7 +353,7 @@ export default function AuditActivityLogScreen() {
                       ) : (
                         <>
                           <Clock size={12} color="#D97706" style={{ marginRight: 4 }} />
-                          <Text style={styles.statusPendingText}>Awaiting Confirmations</Text>
+                          <Text style={styles.statusPendingText}>{item.status === 'RECORDED' ? 'Recorded In Audit Chain' : 'Awaiting Confirmations'}</Text>
                         </>
                       )}
                     </View>

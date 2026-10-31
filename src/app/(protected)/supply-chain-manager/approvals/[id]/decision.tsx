@@ -49,7 +49,7 @@ export default function ApprovalDecisionScreen() {
   const [rejectionComments, setRejectionComments] = useState('');
   const [changeRequirements, setChangeRequirements] = useState('');
   const [approvalComments, setApprovalComments] = useState(
-    'Authorized under Manager Operational Recovery Policy RP-POL-04. Budget allocation approved.'
+    ''
   );
   const [decisionCompleted, setDecisionCompleted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');

@@ -28,6 +28,8 @@ import OrderCard from '../../../../features/operations-analyst/components/OrderC
 import StatusBadge from '../../../../features/operations-analyst/components/StatusBadge';
 import { useOrderRisk } from '../../../../features/operations-analyst/hooks/useOrderRisk';
 import operationsService from '../../../../features/operations-analyst/services/operationsService';
+import { LiveChainCard } from '../../../../components/blockchain/LiveChainCard';
+import { isBackendOnline, submitPlan, syncNow, useSyncVersion } from '../../../../services/backendSync';
 
 export default function SimulationResultsScreen() {
   const router = useRouter();
@@ -36,15 +38,20 @@ export default function SimulationResultsScreen() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
 
+  useSyncVersion();
   const planId = params.planId || 'RP-001';
   const plan = operationsService.getRecoveryPlanById(planId) || operationsService.getRecoveryPlans()[0];
   const { orders: affectedOrders } = useOrderRisk(operationsService.getOrders({ disruptionId: plan.relatedDisruptionId }));
+  const disruption = operationsService.getDisruptionById(plan.relatedDisruptionId);
+  const valueAtRisk = affectedOrders.reduce((sum, o) => sum + (o.revenue ?? 0), 0);
+  const protectedCounts = /(\d+) of (\d+)/.exec(plan.deliveryImpact);
+  const isSubmitted = plan.status !== 'Simulation Complete' && plan.status !== 'Draft';
 
-  const handleReRunSimulation = () => {
+  // The backend rebuilds every option from current stock, capacity and deadlines on each sync.
+  const handleReRunSimulation = async () => {
     setIsSimulating(true);
-    setTimeout(() => {
-      setIsSimulating(false);
-    }, 800);
+    await syncNow();
+    setIsSimulating(false);
   };
 
   const handleSubmitForApproval = () => {
@@ -55,9 +62,14 @@ export default function SimulationResultsScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm & Submit',
-          onPress: () => {
-            operationsService.submitPlanForApproval(plan.id);
-            setSubmissionSuccess(true);
+          onPress: async () => {
+            try {
+              if (isBackendOnline()) await submitPlan(plan.id);
+              else operationsService.submitPlanForApproval(plan.id);
+              setSubmissionSuccess(true);
+            } catch (err: any) {
+              Alert.alert('Plan not submitted', err?.message ?? 'Please try again.');
+            }
           },
         },
       ]
@@ -91,7 +103,7 @@ export default function SimulationResultsScreen() {
           <View>
             <Text style={styles.statusTitle}>Feasible Strategy (Score: {plan.feasibilityScore}/100)</Text>
             <Text style={styles.statusSub}>
-              Monte Carlo simulation verified • 24 Oct 2026, 10:45 AM
+              Rule-checked against live stock, capacity and deadlines
             </Text>
           </View>
         </View>
@@ -123,7 +135,7 @@ export default function SimulationResultsScreen() {
           style={[styles.tabBtn, activeTab === 'orders' && styles.tabBtnActive]}
         >
           <Text style={[styles.tabText, activeTab === 'orders' && styles.tabTextActive]}>
-            Protected ({affectedOrders.length})
+            Orders ({affectedOrders.length})
           </Text>
         </Pressable>
 
@@ -140,7 +152,7 @@ export default function SimulationResultsScreen() {
       {isSimulating ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563EB" />
-          <Text style={styles.loadingText}>Running 10,000 route stochastic recovery simulations...</Text>
+          <Text style={styles.loadingText}>Re-checking this plan against live data...</Text>
         </View>
       ) : (
         <ScrollView
@@ -154,10 +166,14 @@ export default function SimulationResultsScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.successNoticeTitle}>Submitted to Manager</Text>
                 <Text style={styles.successNoticeSub}>
-                  Plan state updated to &quot;Pending Approval&quot;. Dispatched to Supply Chain Manager David Vance for review.
+                  Saved on the server and waiting for the Supply Chain Manager&apos;s decision.
                 </Text>
               </View>
             </View>
+          )}
+
+          {isSubmitted && (
+            <LiveChainCard anchorTx={plan.anchorTx} anchorStatus={plan.anchorStatus} anchorBlock={plan.anchorBlock} planHash={plan.planHash} />
           )}
 
           {/* 4 Summary Cards */}
@@ -172,7 +188,7 @@ export default function SimulationResultsScreen() {
               <View style={styles.kpiCard}>
                 <ShieldCheck size={18} color="#16A34A" />
                 <Text style={[styles.kpiValue, { color: '#16A34A' }]}>
-                  {affectedOrders.length} of {affectedOrders.length}
+                  {protectedCounts ? `${protectedCounts[1]} of ${protectedCounts[2]}` : '—'}
                 </Text>
                 <Text style={styles.kpiLabel}>Orders Protected</Text>
               </View>
@@ -181,8 +197,8 @@ export default function SimulationResultsScreen() {
             <View style={styles.kpiRow}>
               <View style={styles.kpiCard}>
                 <Clock size={18} color="#059669" />
-                <Text style={[styles.kpiValue, { color: '#059669' }]}>{plan.deliveryImpact}</Text>
-                <Text style={styles.kpiLabel}>Delivery Impact</Text>
+                <Text style={[styles.kpiValue, { color: '#059669' }]}>{disruption?.estimatedDelay ?? '—'}</Text>
+                <Text style={styles.kpiLabel}>Reported Delay</Text>
               </View>
 
               <View style={styles.kpiCard}>
@@ -197,34 +213,32 @@ export default function SimulationResultsScreen() {
             <>
               {/* Baseline vs Simulated Recovery Comparison */}
               <View style={styles.card}>
-                <Text style={styles.cardTitle}>Baseline vs. Simulated Plan Comparison</Text>
+                <Text style={styles.cardTitle}>No Action vs. This Plan</Text>
                 <View style={styles.comparisonTable}>
                   <View style={styles.compRowHeader}>
                     <Text style={styles.compColHead}>Metric</Text>
                     <Text style={styles.compColHead}>No Action</Text>
-                    <Text style={[styles.compColHead, { color: '#16A34A' }]}>Simulated</Text>
+                    <Text style={[styles.compColHead, { color: '#16A34A' }]}>This Plan</Text>
                   </View>
                   <View style={styles.compRow}>
-                    <Text style={styles.compLabel}>Total Customer Delay</Text>
-                    <Text style={[styles.compVal, { color: '#DC2626' }]}>+5 Days</Text>
-                    <Text style={[styles.compVal, { color: '#16A34A' }]}>0 Days (On-Time)</Text>
+                    <Text style={styles.compLabel}>Orders Needing Action</Text>
+                    <Text style={[styles.compVal, { color: '#DC2626' }]}>{protectedCounts ? `${protectedCounts[2]} exposed` : '—'}</Text>
+                    <Text style={[styles.compVal, { color: '#16A34A' }]}>{protectedCounts ? `${protectedCounts[1]} protected` : '—'}</Text>
                   </View>
                   <View style={styles.compRow}>
-                    <Text style={styles.compLabel}>SLA Penalty Exposure</Text>
-                    <Text style={[styles.compVal, { color: '#DC2626' }]}>$85,000</Text>
-                    <Text style={[styles.compVal, { color: '#16A34A' }]}>$0</Text>
+                    <Text style={styles.compLabel}>Short Units Covered</Text>
+                    <Text style={[styles.compVal, { color: '#DC2626' }]}>0%</Text>
+                    <Text style={[styles.compVal, { color: '#16A34A' }]}>{plan.feasibilityScore}%</Text>
                   </View>
                   <View style={styles.compRow}>
-                    <Text style={styles.compLabel}>Recovery Implementation</Text>
-                    <Text style={styles.compVal}>$0</Text>
-                    <Text style={styles.compVal}>${plan.estimatedCost.toLocaleString()}</Text>
+                    <Text style={styles.compLabel}>Affected Order Value</Text>
+                    <Text style={styles.compVal}>${valueAtRisk.toLocaleString()}</Text>
+                    <Text style={styles.compVal}>${valueAtRisk.toLocaleString()}</Text>
                   </View>
                   <View style={[styles.compRow, { borderBottomWidth: 0 }]}>
-                    <Text style={styles.compLabel}>Net Enterprise Savings</Text>
+                    <Text style={styles.compLabel}>Recovery Cost</Text>
                     <Text style={styles.compVal}>$0</Text>
-                    <Text style={[styles.compVal, { color: '#16A34A', fontWeight: '800' }]}>
-                      +${(85000 - plan.estimatedCost).toLocaleString()}
-                    </Text>
+                    <Text style={styles.compVal}>${plan.estimatedCost.toLocaleString()}</Text>
                   </View>
                 </View>
               </View>
@@ -247,18 +261,12 @@ export default function SimulationResultsScreen() {
           {activeTab === 'cost' && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Detailed Cost Breakdown</Text>
-              <View style={styles.costItemRow}>
-                <Text style={styles.costItemName}>Express Intra-Warehouse Freight</Text>
-                <Text style={styles.costItemVal}>$6,500</Text>
-              </View>
-              <View style={styles.costItemRow}>
-                <Text style={styles.costItemName}>Priority Handling & Overtime Bay Staff</Text>
-                <Text style={styles.costItemVal}>$4,500</Text>
-              </View>
-              <View style={styles.costItemRow}>
-                <Text style={styles.costItemName}>Direct Client Expedited Dispatch</Text>
-                <Text style={styles.costItemVal}>$3,200</Text>
-              </View>
+              {plan.actions.map((action) => (
+                <View key={action.id} style={styles.costItemRow}>
+                  <Text style={styles.costItemName}>{action.title}</Text>
+                  <Text style={styles.costItemVal}>${(action.estimatedCost ?? 0).toLocaleString()}</Text>
+                </View>
+              ))}
               <View style={[styles.costItemRow, styles.costTotalRow]}>
                 <Text style={styles.costTotalText}>Total Estimated Cost</Text>
                 <Text style={styles.costTotalVal}>${plan.estimatedCost.toLocaleString()}</Text>
@@ -268,7 +276,7 @@ export default function SimulationResultsScreen() {
 
           {activeTab === 'orders' && (
             <View>
-              <Text style={styles.cardTitle}>Protected Client Orders ({affectedOrders.length})</Text>
+              <Text style={styles.cardTitle}>Affected Client Orders ({affectedOrders.length})</Text>
               {affectedOrders.map((order) => (
                 <OrderCard key={order.id} order={order} />
               ))}
@@ -277,28 +285,23 @@ export default function SimulationResultsScreen() {
 
           {activeTab === 'timeline' && (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Recovery Execution Milestones</Text>
+              <Text style={styles.cardTitle}>Recovery Actions, In Order</Text>
               <View style={styles.timelineItem}>
                 <View style={styles.timeDot} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.timeTitle}>T+0: Approval & Dispatch Order</Text>
-                  <Text style={styles.timeSub}>Pending Supply Chain Manager sign-off</Text>
+                  <Text style={styles.timeTitle}>Manager decision</Text>
+                  <Text style={styles.timeSub}>Nothing runs until a manager approves and confirms execution</Text>
                 </View>
               </View>
-              <View style={styles.timelineItem}>
-                <View style={[styles.timeDot, { backgroundColor: '#2563EB' }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.timeTitle}>T+6h: Stock Release at WH-BLR</Text>
-                  <Text style={styles.timeSub}>280 units allocated and packed for road transit</Text>
+              {plan.actions.map((action) => (
+                <View key={action.id} style={styles.timelineItem}>
+                  <View style={[styles.timeDot, { backgroundColor: '#2563EB' }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.timeTitle}>{action.title}</Text>
+                    <Text style={styles.timeSub}>{action.leadTime} · {action.unitsOrScope}</Text>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.timelineItem}>
-                <View style={[styles.timeDot, { backgroundColor: '#16A34A' }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.timeTitle}>T+24h: Delivery at Mumbai Assembly</Text>
-                  <Text style={styles.timeSub}>Final receiving bay verification and order staging</Text>
-                </View>
-              </View>
+              ))}
             </View>
           )}
         </ScrollView>
@@ -318,16 +321,16 @@ export default function SimulationResultsScreen() {
 
         <Pressable
           onPress={handleSubmitForApproval}
-          disabled={plan.status === 'Pending Approval' || submissionSuccess}
+          disabled={isSubmitted || submissionSuccess}
           style={({ pressed }) => [
             styles.primaryBtn,
-            (plan.status === 'Pending Approval' || submissionSuccess) && styles.primaryBtnDisabled,
+            (isSubmitted || submissionSuccess) && styles.primaryBtnDisabled,
             pressed && styles.btnPressed,
           ]}
         >
           <Send size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
           <Text style={styles.primaryBtnText}>
-            {plan.status === 'Pending Approval' || submissionSuccess ? 'Pending Approval' : 'Submit for Approval'}
+            {isSubmitted ? plan.status : submissionSuccess ? 'Pending Approval' : 'Submit for Approval'}
           </Text>
         </Pressable>
       </View>

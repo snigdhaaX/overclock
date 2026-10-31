@@ -127,6 +127,12 @@ export interface RecoveryPlan {
   submittedAt?: string;
   submittedBy?: string;
   assignedApprover?: string;
+  planHash?: string | null;
+  anchorTx?: string | null;
+  anchorStatus?: string | null;
+  anchorBlock?: number | null;
+  txHash?: string | null;
+  chainStatus?: string | null;
   approvalNotes?: string;
   approvedAt?: string;
   approvedBy?: string;

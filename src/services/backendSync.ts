@@ -10,6 +10,29 @@ let version = 0;
 let online = false;
 const listeners = new Set<() => void>();
 
+export interface LiveData {
+  risk?: any;
+  chain?: { signingEnabled: boolean; connected: boolean; chainId?: number; network?: string; contract?: string; latestBlock?: number; contractDeployed?: boolean };
+  auditChain?: { valid: boolean; events: number; broken_at: number | null };
+  inventory?: { warehouse: string; warehouseCode: string; product: string; sku: string; onHand: number; reserved: number; safety: number; available: number }[];
+  suppliers?: { code: string; name: string; country: string; outcomes: number; on_time_rate: number | null; late_rate: number | null }[];
+  currentUser?: { name: string; email: string };
+  health?: any;
+}
+
+export interface RetrainResult {
+  status: string;
+  reason?: string;
+  decision_reason?: string;
+}
+
+let live: LiveData = {};
+
+/** Data from the last sync that has no home in the older mock-backed services. */
+export const getLiveData = () => live;
+
+export const runRetrain = () => apiRequest<RetrainResult>('/risk/models/retrain', { method: 'POST', body: {}, timeoutMs: 60000 });
+
 function notify() {
   version += 1;
   listeners.forEach((listener) => listener());
@@ -22,6 +45,7 @@ export async function syncNow(): Promise<boolean> {
     const data = await apiRequest<any>('/app/bootstrap');
     operationsService.hydrate(data);
     managerService.hydrate(data);
+    live = { risk: data.risk, chain: data.chain, auditChain: data.auditChain, inventory: data.inventory, suppliers: data.suppliers, currentUser: data.currentUser, health: data.health };
     online = true;
     notify();
     return true;

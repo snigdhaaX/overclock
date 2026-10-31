@@ -29,7 +29,8 @@ import MetricCard from '../../../features/operations-analyst/components/MetricCa
 import OperationsBottomNav from '../../../features/operations-analyst/components/OperationsBottomNav';
 import OperationsHeader from '../../../features/operations-analyst/components/OperationsHeader';
 import operationsService from '../../../features/operations-analyst/services/operationsService';
-import { useSyncVersion } from '@/services/backendSync';
+import { getLiveData, syncNow, useSyncVersion } from '@/services/backendSync';
+import { LiveChainCard } from '@/components/blockchain/LiveChainCard';
 
 export default function OperationsAnalystHomeScreen() {
   const router = useRouter();
@@ -38,17 +39,24 @@ export default function OperationsAnalystHomeScreen() {
 
   const disruptions = operationsService.getDisruptions();
   const criticalDisruptions = disruptions.filter((d) => d.severity === 'Critical' || d.severity === 'High');
+  const live = getLiveData();
+  const orders = operationsService.getOrders();
+  const plans = operationsService.getRecoveryPlans();
+  const activeCount = disruptions.filter((d) => d.status !== 'Mitigated').length;
+  const atRiskCount = orders.filter((o) => o.status !== 'Mitigated').length;
+  const awaitingCount = plans.filter((p) => p.status === 'Pending Approval').length;
+  const completedCount = plans.filter((p) => p.status === 'Completed').length;
+  const riskRun = live.risk?.latest_run;
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 600);
+    await syncNow();
+    setRefreshing(false);
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <OperationsHeader showGreeting userName="Anishwath" />
+      <OperationsHeader showGreeting userName={live.currentUser?.name.split(' ')[0] ?? 'Analyst'} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -62,8 +70,8 @@ export default function OperationsAnalystHomeScreen() {
           <View style={styles.kpiRow}>
             <MetricCard
               label="Active Disruptions"
-              value="14"
-              change="+2 today"
+              value={String(activeCount)}
+              change={`${disruptions.length} total`}
               isPositiveChange={false}
               icon={<AlertOctagon size={20} color="#DC2626" />}
               iconBgColor="#FEE2E2"
@@ -71,8 +79,8 @@ export default function OperationsAnalystHomeScreen() {
             />
             <MetricCard
               label="Affected Orders"
-              value="23"
-              change="8 at risk"
+              value={String(orders.length)}
+              change={`${atRiskCount} at risk`}
               isPositiveChange={false}
               icon={<Package size={20} color="#EA580C" />}
               iconBgColor="#FFEDD5"
@@ -81,9 +89,9 @@ export default function OperationsAnalystHomeScreen() {
           </View>
           <View style={styles.kpiRow}>
             <MetricCard
-              label="On-time Delivery"
-              value="92%"
-              change="Target: 95%"
+              label="Risk Engine"
+              value={live.risk?.scoring_method === 'ml' ? `ML v${live.risk.active_version}` : 'Formula'}
+              change={riskRun?.metrics?.challenger ? `PR-AUC ${riskRun.metrics.challenger.pr_auc.toFixed(2)} vs ${riskRun.metrics.formula.pr_auc.toFixed(2)}` : 'Live scoring'}
               isPositiveChange={true}
               icon={<TrendingUp size={20} color="#16A34A" />}
               iconBgColor="#DCFCE7"
@@ -91,8 +99,8 @@ export default function OperationsAnalystHomeScreen() {
             />
             <MetricCard
               label="Recovery Plans"
-              value="6 Active"
-              change="96% Feasible"
+              value={`${plans.length} Options`}
+              change={`${awaitingCount} awaiting, ${completedCount} done`}
               isPositiveChange={true}
               icon={<Sparkles size={20} color="#2563EB" />}
               iconBgColor="#EFF6FF"
@@ -100,6 +108,8 @@ export default function OperationsAnalystHomeScreen() {
             />
           </View>
         </View>
+
+        <LiveChainCard />
 
         {/* Quick Action Shortcuts */}
         <View style={styles.section}>

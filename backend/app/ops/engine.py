@@ -2,6 +2,7 @@
 import datetime
 import hashlib
 import json
+import time
 import uuid
 from typing import Any, Dict, List, Optional
 import logging
@@ -22,6 +23,9 @@ from ..recommendations import engine as recommendations
 from ..recommendations.engine import supplier_reliability  # noqa: F401  (used by routes)
 from ..risk.models import RiskExposure
 from . import chain
+
+CHAIN_WAIT_ATTEMPTS = 15
+CHAIN_WAIT_SECONDS = 2
 
 
 logger = logging.getLogger(__name__)
@@ -391,7 +395,12 @@ def confirm_execution(db: Session, org: Organization, user: User, key: str) -> E
     if approval is None:
         raise WorkflowError(409, "NOT_APPROVED", "Execution needs a completed approval first.")
     if chain.enabled():
-        reconcile_chain(db, org)
+        # A live network takes a few seconds to mine the approval.
+        for _ in range(CHAIN_WAIT_ATTEMPTS):
+            reconcile_chain(db, org)
+            if approval.chain_status != "CHAIN_PENDING" or not approval.tx_hash:
+                break
+            time.sleep(CHAIN_WAIT_SECONDS)
         if approval.chain_status != "CHAIN_CONFIRMED":
             raise WorkflowError(409, "CHAIN_NOT_CONFIRMED", "The approval isn't confirmed on-chain yet. Try again shortly.")
     # Stock may have moved since the plan was made (PRD 14.12).

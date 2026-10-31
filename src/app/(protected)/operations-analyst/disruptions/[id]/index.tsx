@@ -179,7 +179,7 @@ export default function DisruptionDetailScreen() {
               <View style={styles.reportedAtBanner}>
                 <Clock size={13} color="#64748B" style={{ marginRight: 6 }} />
                 <Text style={styles.reportedAtText}>
-                  First reported {disruption.reportedTime} via live AIS telemetry
+                  First reported {disruption.reportedTime} via authenticated carrier event
                 </Text>
               </View>
             </View>

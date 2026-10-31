@@ -27,11 +27,13 @@ import RiskSourceNote from '../../../features/operations-analyst/components/Risk
 import { useOrderRisk } from '../../../features/operations-analyst/hooks/useOrderRisk';
 import operationsService from '../../../features/operations-analyst/services/operationsService';
 import type { SeverityLevel } from '../../../features/operations-analyst/types';
-import { useSyncVersion } from '@/services/backendSync';
+import { getLiveData, useSyncVersion } from '@/services/backendSync';
+import { RiskEngineCard } from '../../../features/operations-analyst/components/RiskEngineCard';
 
 export default function RiskIntelligenceScreen() {
   const router = useRouter();
   useSyncVersion();
+  const live = getLiveData();
   const [activeTab, setActiveTab] = useState<'order' | 'inventory' | 'supplier'>('order');
 
   const sampleRiskData = operationsService.getRiskIntelligence();
@@ -94,6 +96,7 @@ export default function RiskIntelligenceScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        <RiskEngineCard />
         <RiskSourceNote status={status} source={source} onRetry={refresh} />
 
         {/* Risk Distribution Donut Section */}
@@ -142,75 +145,54 @@ export default function RiskIntelligenceScreen() {
 
         {activeTab === 'inventory' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Warehouse Depletion Alerts</Text>
-            <View style={styles.inventoryCard}>
-              <View style={styles.invRow}>
-                <View style={[styles.invIcon, { backgroundColor: '#FEE2E2' }]}>
-                  <Warehouse size={18} color="#DC2626" />
+            <Text style={styles.sectionTitle}>Warehouse Stock</Text>
+            {(live.inventory ?? []).map((row) => {
+              const severity: SeverityLevel = row.available <= 0 ? 'Critical' : row.available < row.onHand * 0.25 ? 'High' : 'Low';
+              return (
+                <View key={`${row.warehouseCode}-${row.sku}`} style={styles.inventoryCard}>
+                  <View style={styles.invRow}>
+                    <View style={[styles.invIcon, { backgroundColor: severity === 'Low' ? '#DCFCE7' : '#FEE2E2' }]}>
+                      <Warehouse size={18} color={severity === 'Low' ? '#16A34A' : '#DC2626'} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.invTitle}>{row.warehouse} ({row.warehouseCode})</Text>
+                      <Text style={styles.invSub}>{row.product}</Text>
+                    </View>
+                    <SeverityBadge severity={severity} size="sm" />
+                  </View>
+                  <Text style={styles.invDesc}>
+                    {row.available.toLocaleString()} free of {row.onHand.toLocaleString()} on hand. {row.reserved.toLocaleString()} reserved, {row.safety.toLocaleString()} safety stock.
+                  </Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.invTitle}>Mumbai Central Hub (WH-MUM)</Text>
-                  <Text style={styles.invSub}>Buffer: 14% | Microcontroller ICs</Text>
-                </View>
-                <SeverityBadge severity="Critical" size="sm" />
-              </View>
-              <Text style={styles.invDesc}>
-                Stock depletion risk triggered due to 120h OceanTrans berth backlog. 8 customer orders exposed.
-              </Text>
-            </View>
-
-            <View style={styles.inventoryCard}>
-              <View style={styles.invRow}>
-                <View style={[styles.invIcon, { backgroundColor: '#FEF3C7' }]}>
-                  <Warehouse size={18} color="#D97706" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.invTitle}>Frankfurt Cargo Facility</Text>
-                  <Text style={styles.invSub}>Buffer: 28% | Optical Sensors</Text>
-                </View>
-                <SeverityBadge severity="Medium" size="sm" />
-              </View>
-              <Text style={styles.invDesc}>
-                Customs classification document hold resolved. Clearing outbound flights.
-              </Text>
-            </View>
+              );
+            })}
           </View>
         )}
 
         {activeTab === 'supplier' && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Supplier Reliability & Risk</Text>
-            <View style={styles.inventoryCard}>
-              <View style={styles.invRow}>
-                <View style={[styles.invIcon, { backgroundColor: '#FFEDD5' }]}>
-                  <Building size={18} color="#EA580C" />
+            {(live.suppliers ?? []).map((supplier) => {
+              const late = supplier.late_rate ?? 0;
+              const severity: SeverityLevel = late >= 0.3 ? 'High' : late >= 0.15 ? 'Medium' : 'Low';
+              return (
+                <View key={supplier.code} style={styles.inventoryCard}>
+                  <View style={styles.invRow}>
+                    <View style={[styles.invIcon, { backgroundColor: severity === 'Low' ? '#DCFCE7' : '#FFEDD5' }]}>
+                      <Building size={18} color={severity === 'Low' ? '#16A34A' : '#EA580C'} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.invTitle}>{supplier.name} ({supplier.code})</Text>
+                      <Text style={styles.invSub}>{supplier.country}</Text>
+                    </View>
+                    <SeverityBadge severity={severity} size="sm" />
+                  </View>
+                  <Text style={styles.invDesc}>
+                    {supplier.on_time_rate === null ? 'No delivery history yet.' : `${Math.round(supplier.on_time_rate * 100)}% on time across ${supplier.outcomes} recorded deliveries.`}
+                  </Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.invTitle}>Tech Components Ltd (SUP-08)</Text>
-                  <Text style={styles.invSub}>Shenzhen Semiconductor Cluster</Text>
-                </View>
-                <SeverityBadge severity="High" size="sm" />
-              </View>
-              <Text style={styles.invDesc}>
-                Regional power cuts causing 8-day wafer fab backlog. Recommend dual-sourcing strategy.
-              </Text>
-            </View>
-
-            <View style={styles.inventoryCard}>
-              <View style={styles.invRow}>
-                <View style={[styles.invIcon, { backgroundColor: '#DCFCE7' }]}>
-                  <Building size={18} color="#16A34A" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.invTitle}>TechParts Ltd (SUP-03)</Text>
-                  <Text style={styles.invSub}>Singapore Distribution Node</Text>
-                </View>
-                <SeverityBadge severity="Low" size="sm" />
-              </View>
-              <Text style={styles.invDesc}>
-                Manufacturing output stable. Port berth queue is the sole bottleneck.
-              </Text>
-            </View>
+              );
+            })}
           </View>
         )}
       </ScrollView>

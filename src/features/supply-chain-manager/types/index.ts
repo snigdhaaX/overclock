@@ -118,6 +118,8 @@ export interface AuditEvent {
   description: string;
   verificationStatus: 'verified' | 'pending' | 'unverified';
   txHash?: string;
+  occurredAt?: string;
+  blockNumber?: number | null;
 }
 
 export interface NetworkHealthMetrics {

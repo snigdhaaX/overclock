@@ -33,6 +33,7 @@ import OperationsHeader from '../../../../features/operations-analyst/components
 import StatusBadge from '../../../../features/operations-analyst/components/StatusBadge';
 import operationsService from '../../../../features/operations-analyst/services/operationsService';
 import { isBackendOnline, submitPlan as submitPlanToBackend } from '../../../../services/backendSync';
+import { LiveChainCard } from '../../../../components/blockchain/LiveChainCard';
 import { RecoveryPlan } from '../../../../features/operations-analyst/types';
 import { blockchainApi } from '../../../../services/blockchainApi';
 import { useBlockchainWallet } from '../../../../hooks/useBlockchainWallet';
@@ -128,6 +129,7 @@ export default function PlanReviewAndSubmitScreen() {
 
   // Fetch canonical hash and on-chain state
   const loadBlockchainData = useCallback(async () => {
+    if (isBackendOnline()) return;
     setLoadingChainData(true);
     try {
       const planPayload = buildPlanData(plan);
@@ -329,7 +331,8 @@ export default function PlanReviewAndSubmitScreen() {
                 Status: <Text style={{ fontWeight: '700' }}>Pending Governance Sign-Off</Text>
               </Text>
               <Text style={styles.bannerDetail}>
-                Assigned to: Supply Chain Manager (David Vance). On-chain transaction has been committed to the TrustChain smart contract.
+                Assigned to: {plan.assignedApprover ?? 'Supply Chain Manager'}.{' '}
+                {plan.anchorStatus === 'CHAIN_CONFIRMED' ? `Plan hash anchored on-chain in block #${plan.anchorBlock}.` : plan.anchorStatus === 'CHAIN_FAILED' ? 'The on-chain anchor failed, so this plan is not yet verifiable.' : 'Not yet confirmed on-chain.'}
               </Text>
             </View>
           </View>
@@ -337,19 +340,26 @@ export default function PlanReviewAndSubmitScreen() {
           <View style={styles.governanceNotice}>
             <UserCheck size={18} color="#2563EB" style={{ marginRight: 8, marginTop: 1 }} />
             <Text style={styles.govNoticeText}>
-              <Text style={{ fontWeight: '700' }}>On-Chain Governance Rule:</Text> Operational plans must be anchored to Polygon Amoy using an authorized Operations Analyst wallet before manager sign-off.
+              <Text style={{ fontWeight: '700' }}>On-Chain Governance Rule:</Text> {isBackendOnline() ? 'Submitting signs a real transaction that anchors this exact plan’s hash before a manager can decide on it.' : 'Operational plans must be anchored using an authorized Operations Analyst wallet before manager sign-off.'}
             </Text>
           </View>
         )}
 
+        {/* Signing happens on the server in the demo, so the wallet and manifest cards are the offline path only. */}
+        {isBackendOnline() && (
+          <LiveChainCard anchorTx={plan.anchorTx} anchorStatus={plan.anchorStatus} anchorBlock={plan.anchorBlock} planHash={plan.planHash} />
+        )}
+
         {/* 1. Wallet Authentication Card */}
-        <WalletConnectionCard
-          requiredRole="operations-analyst"
-          onWalletConnected={() => loadBlockchainData()}
-        />
+        {!isBackendOnline() && (
+          <WalletConnectionCard
+            requiredRole="operations-analyst"
+            onWalletConnected={() => loadBlockchainData()}
+          />
+        )}
 
         {/* 2. Canonical Plan Hash Card */}
-        {hashData ? (
+        {isBackendOnline() ? null : hashData ? (
           <PlanHashCard
             planHash={hashData.sha256_hash}
             schemaVersion={hashData.schema_version}
@@ -364,7 +374,7 @@ export default function PlanReviewAndSubmitScreen() {
         )}
 
         {/* 3. Evidence Manifest Card */}
-        {hashData && (
+        {!isBackendOnline() && hashData && (
           <EvidenceManifestCard
             manifestRootHash={hashData.evidence_manifest_hash}
             disruptionId={plan.relatedDisruptionId}

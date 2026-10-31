@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, DateTime, Float, Integer, String, Text, UniqueConstraint, Index
+from sqlalchemy import LargeBinary, Column, DateTime, Float, Integer, String, Text, UniqueConstraint, Index
 from ..blockchain.database import Base
 
 
@@ -52,6 +52,8 @@ class RiskModelVersion(Base):
     eval_rows = Column(Integer, nullable=False)
     metrics_json = Column(Text, nullable=False)
     artifact_path = Column(Text, nullable=True)
+    # Hosted servers lose local files on restart, so the fitted model also lives in the database.
+    artifact_blob = Column(LargeBinary, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     __table_args__ = (

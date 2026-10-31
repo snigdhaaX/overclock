@@ -43,7 +43,7 @@ export const ROLES: Record<UserRole, RoleDefinition> = {
   'warehouse-operator': {
     id: 'warehouse-operator',
     title: 'Warehouse Operator',
-    description: 'Manage warehouse activities, inventory and goods status.',
+    description: 'Preview with sample data. Manage warehouse activities, inventory and goods status.',
     route: '/(auth)/warehouse-operator',
     iconName: 'package',
     badgeColor: '#16A34A',
@@ -54,7 +54,7 @@ export const ROLES: Record<UserRole, RoleDefinition> = {
   'procurement-approver': {
     id: 'procurement-approver',
     title: 'Procurement Approver',
-    description: 'Evaluate suppliers and approve procurement changes.',
+    description: 'Preview with sample data. Evaluate suppliers and approve procurement changes.',
     route: '/(auth)/procurement-approver',
     iconName: 'clipboard-check',
     badgeColor: '#8B5CF6',
@@ -65,7 +65,7 @@ export const ROLES: Record<UserRole, RoleDefinition> = {
   'administrator': {
     id: 'administrator',
     title: 'Administrator',
-    description: 'Manage users, roles, permissions and system configuration.',
+    description: 'Preview with sample data. Manage users, roles, permissions and system configuration.',
     route: '/(auth)/administrator',
     iconName: 'shield',
     badgeColor: '#475569',

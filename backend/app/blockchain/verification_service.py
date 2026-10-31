@@ -348,7 +348,7 @@ class PlanVerificationService:
                 disruption = (
                     db.query(Disruption)
                     .filter(
-                        (Disruption.incident_code == disruption_code) | (Disruption.id == disruption_code)
+                        (Disruption.incident_code == str(disruption_code)) | (Disruption.id == (int(disruption_code) if str(disruption_code).isdigit() else None))
                     )
                     .first()
                 )

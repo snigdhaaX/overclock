@@ -11,7 +11,9 @@ from ..models.recovery import Approval, ExecutionAction, ExecutionRun, RecoveryP
 from ..models.supply_chain import Carrier, Product, Shipment, Supplier
 from ..risk import service as risk_service, training
 from ..recommendations.engine import recovery_tier
-from . import engine
+from ..models.inventory import Inventory
+from ..models.supply_chain import Warehouse
+from . import chain, engine
 from .engine import aware
 
 SEVERITY = {"CRITICAL": "Critical", "HIGH": "High", "MODERATE": "Medium", "LOW": "Low"}
@@ -30,6 +32,28 @@ FACTOR_LABELS = {
     "shortage_ratio": "Share of the order that is short", "priority_tier": "Order priority", "supplier_hist_miss_rate": "Supplier track record",
     "supplier_recent_miss_rate": "Supplier recent misses", "carrier_hist_miss_rate": "Carrier track record", "carrier_recent_miss_rate": "Carrier recent misses",
 }
+
+
+_receipts: Dict[str, Dict[str, Any]] = {}
+
+
+def _receipt(tx_hash: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Real receipts only. A mined receipt never changes, so it's safe to keep."""
+    if not tx_hash or not chain.enabled():
+        return None
+    if tx_hash not in _receipts:
+        details = chain.receipt_details(tx_hash)
+        if details is None:
+            return None
+        _receipts[tx_hash] = details
+    return _receipts[tx_hash]
+
+
+def _chain_state(tx_hash: Optional[str], stored: Optional[str]) -> Optional[str]:
+    receipt = _receipt(tx_hash)
+    if receipt is None:
+        return stored
+    return "CHAIN_CONFIRMED" if receipt["status"] == 1 else "CHAIN_FAILED"
 
 
 def _date(value: Optional[datetime.datetime]) -> str:
@@ -128,9 +152,16 @@ def plan_view(db: Session, plan: RecoveryPlan, disruption: Disruption, users: Di
         "targetCompletionDate": "", "description": feasibility.get("strategy", ""),
         "actions": [_action_view(i, a.parameters, "Completed" if plan.status == "COMPLETED" else "Configured") for i, a in enumerate(actions)],
         "submittedAt": _stamp(plan.submitted_at), "submittedBy": creator.full_name if creator else "", "assignedApprover": "Supply Chain Manager",
-        "version": plan.version, "planHash": plan.plan_hash, "chainStatus": approval.chain_status if approval else (plan.expected_outcome or {}).get("anchor", {}).get("chain_status"),
-        "txHash": approval.tx_hash if approval else (plan.expected_outcome or {}).get("anchor", {}).get("tx_hash"),
+        "version": plan.version, "planHash": plan.plan_hash,
     }
+    anchor = (plan.expected_outcome or {}).get("anchor", {})
+    latest_tx = (approval.tx_hash if approval and approval.tx_hash else None) or anchor.get("tx_hash")
+    anchor_receipt = _receipt(anchor.get("tx_hash"))
+    view.update(
+        chainStatus=_chain_state(latest_tx, approval.chain_status if approval else anchor.get("chain_status")), txHash=latest_tx,
+        anchorTx=anchor.get("tx_hash"), anchorStatus=_chain_state(anchor.get("tx_hash"), anchor.get("chain_status")), anchorBlock=anchor_receipt["block"] if anchor_receipt else None,
+        chainError=anchor.get("error"),
+    )
     if approval and approval.decision == "APPROVED":
         view.update(approvedAt=_stamp(approval.decided_at), approvedBy=approver.full_name if approver else "", approvalNotes=approval.comments or "")
     elif approval and approval.decision == "REJECTED":
@@ -143,8 +174,10 @@ def plan_view(db: Session, plan: RecoveryPlan, disruption: Disruption, users: Di
 def audit_view(event: AuditEvent, users: Dict[Any, User]) -> Dict[str, Any]:
     meta = event.event_metadata or {}
     actor = users.get(event.actor_id)
-    chain_status = meta.get("chain_status")
+    chain_status = _chain_state(meta.get("tx"), meta.get("chain_status"))
+    receipt = _receipt(meta.get("tx"))
     return {
+        "occurredAt": aware(event.occurred_at).isoformat(), "blockNumber": receipt["block"] if receipt else None, "sequence": event.sequence,
         "id": f"EVT-{event.sequence}", "type": AUDIT_TYPE.get(event.action_type, "investigation_started"), "actor": actor.full_name if actor else "System", "role": "User" if actor else "Automated",
         "timestamp": _stamp(event.occurred_at), "relatedEntityId": event.entity_id, "relatedEntityType": "plan" if event.entity_type == "plan" else "disruption" if event.entity_type == "disruption" else "shipment",
         "description": event.action_type.replace("_", " ").capitalize() + (f": {meta['comments']}" if meta.get("comments") else ""),
@@ -200,4 +233,20 @@ def bootstrap(db: Session, org: Organization, user: User) -> Dict[str, Any]:
             "activeRecoveryPlans": sum(1 for p in plans if p["status"] in ("Approved", "In Progress")), "completedRecoveryPlans": sum(1 for p in plans if p["status"] == "Completed"), "lastUpdated": _stamp(utcnow()),
         },
         "risk": risk_service.status(db, org.slug),
+        "chain": chain.network_info(),
+        "auditChain": engine.verify_audit_chain(db, org.id),
+        "inventory": _inventory_view(db, org),
+        "suppliers": [{"code": s.code, "name": s.name, "country": s.country, **engine.supplier_reliability(db, org.slug, s.code)} for s in db.query(Supplier).filter_by(organization_id=org.id).all()],
+        "currentUser": {"name": user.full_name, "email": user.email},
     }
+
+
+def _inventory_view(db: Session, org: Organization) -> List[Dict[str, Any]]:
+    rows = (
+        db.query(Inventory, Warehouse, Product).join(Warehouse, Inventory.warehouse_id == Warehouse.id).join(Product, Inventory.product_id == Product.id)
+        .filter(Inventory.organization_id == org.id).all()
+    )
+    return [
+        {"warehouse": w.name, "warehouseCode": w.code, "product": p.name, "sku": p.sku, "onHand": float(i.on_hand_quantity), "reserved": float(i.reserved_quantity), "safety": float(i.safety_stock_quantity or 0), "available": float(i.available_quantity or 0)}
+        for i, w, p in rows
+    ]

@@ -12,6 +12,7 @@ export default function AdministratorLayout() {
     >
       <Stack.Screen name="home" />
       <Stack.Screen name="users" />
+      <Stack.Screen name="imports" />
       <Stack.Screen name="roles" />
       <Stack.Screen name="organizations" />
       <Stack.Screen name="integrations" />

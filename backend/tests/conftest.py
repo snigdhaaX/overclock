@@ -10,8 +10,8 @@ os.environ["TRUSTCHAIN_ALLOW_HEADER_AUTH"] = "1"
 os.environ["TRUSTCHAIN_WEBHOOK_SECRET"] = "demo-carrier-secret"
 os.environ["TRUSTCHAIN_RISK_MODEL_DIR"] = str(Path(_TEST_DIR, "models"))
 os.environ.pop("GEMINI_API_KEY", None)
-os.environ.pop("TRUSTCHAIN_KEY_ANALYST", None)
-os.environ.pop("TRUSTCHAIN_KEY_MANAGER", None)
+os.environ["TRUSTCHAIN_KEY_ANALYST"] = ""
+os.environ["TRUSTCHAIN_KEY_MANAGER"] = ""
 
 from backend.app.blockchain.database import init_db  # noqa: E402
 from backend.app import models as _all_tables  # noqa: E402,F401

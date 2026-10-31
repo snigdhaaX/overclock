@@ -10,12 +10,13 @@ from ..auth import Principal, get_principal
 from ..blockchain.database import get_db
 from ..models.identity import Organization
 from ..models.supply_chain import CARRIER_EVENT_TYPES, Supplier
-from . import chain, engine, serializers
+from . import chain, engine, imports, serializers
 from .seed import ORG_SLUG
 
 router = APIRouter(prefix="/api/v1", tags=["Operations"])
 MANAGERS = ("SUPPLY_CHAIN_MANAGER",)
 AUTHORS = ("OPERATIONS_ANALYST", "SUPPLY_CHAIN_MANAGER")
+IMPORTERS = ("ADMINISTRATOR",)
 
 
 def run(action):
@@ -123,6 +124,55 @@ def verify_audit(principal: Principal = Depends(get_principal), db: Session = De
 def suppliers(principal: Principal = Depends(get_principal), db: Session = Depends(get_db)):
     rows = db.query(Supplier).filter_by(organization_id=principal.organization.id).all()
     return [{"code": s.code, "name": s.name, "country": s.country, **engine.supplier_reliability(db, principal.organization.slug, s.code)} for s in rows]
+
+
+class ImportIn(BaseModel):
+    entity_type: str
+    file_name: str = Field(..., min_length=1, max_length=255)
+    content: str = Field(..., min_length=1, max_length=20_000_000)
+    mode: Literal["STRICT", "PARTIAL"] = "PARTIAL"
+    column_mapping: Optional[dict] = None
+
+
+def _create_import(file_format: str, body: ImportIn, principal: Principal, db: Session):
+    principal.require(*IMPORTERS)
+    job = run(lambda: imports.create_job(db, principal.organization, principal.user, body.entity_type, file_format, body.file_name, body.content, body.mode, body.column_mapping))
+    return imports.job_view(db, principal.organization, str(job.id))
+
+
+@router.post("/imports/csv")
+def import_csv(body: ImportIn, principal: Principal = Depends(get_principal), db: Session = Depends(get_db)):
+    return _create_import("CSV", body, principal, db)
+
+
+@router.post("/imports/json")
+def import_json(body: ImportIn, principal: Principal = Depends(get_principal), db: Session = Depends(get_db)):
+    return _create_import("JSON", body, principal, db)
+
+
+@router.get("/imports")
+def list_imports(principal: Principal = Depends(get_principal), db: Session = Depends(get_db)):
+    principal.require(*IMPORTERS)
+    return imports.list_jobs(db, principal.organization)
+
+
+@router.get("/imports/{job_id}")
+def get_import(job_id: str, principal: Principal = Depends(get_principal), db: Session = Depends(get_db)):
+    principal.require(*IMPORTERS)
+    return run(lambda: imports.job_view(db, principal.organization, job_id))
+
+
+@router.get("/imports/{job_id}/errors")
+def get_import_errors(job_id: str, principal: Principal = Depends(get_principal), db: Session = Depends(get_db)):
+    principal.require(*IMPORTERS)
+    return run(lambda: imports.job_errors(db, principal.organization, job_id))
+
+
+@router.post("/imports/{job_id}/confirm")
+def confirm_import(job_id: str, principal: Principal = Depends(get_principal), db: Session = Depends(get_db)):
+    principal.require(*IMPORTERS)
+    run(lambda: imports.confirm_job(db, principal.organization, principal.user, job_id))
+    return imports.job_view(db, principal.organization, job_id)
 
 
 @router.get("/chain/status")

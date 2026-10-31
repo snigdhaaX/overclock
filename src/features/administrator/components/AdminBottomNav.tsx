@@ -8,6 +8,7 @@ import {
   Network,
   Shield,
   Sliders,
+  UploadCloud,
   User,
   Users,
   X,
@@ -33,6 +34,12 @@ export const AdminBottomNav: React.FC = () => {
   const isAuditActive = pathname.includes('/administrator/audit');
 
   const moreItems = [
+    {
+      title: 'Data Ingestion (CSV / JSON)',
+      subtitle: 'Bulk upload suppliers, inventory & shipments (PRD Mod 4)',
+      icon: <UploadCloud size={20} color="#EA580C" />,
+      route: '/(protected)/administrator/data-import',
+    },
     {
       title: 'Organisations & Facilities',
       subtitle: 'Multi-tenant enterprises, warehouses & capacities',
