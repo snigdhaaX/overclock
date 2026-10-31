@@ -31,7 +31,7 @@ function buildHtml(routes: OrderRoute[]) {
 var send=function(m){window.ReactNativeWebView.postMessage(JSON.stringify(m))};
 var routes=${json},colors=${JSON.stringify(STOP_COLORS)},lines={};
 var map=L.map('map').setView([21,78.5],5);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
 var all=[];
 routes.forEach(function(r){
   if(r.line.length){
