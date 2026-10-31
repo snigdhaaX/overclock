@@ -1,0 +1,30 @@
+[
+  {
+    "shipment_code": "SHP-301",
+    "supplier_code": "SUP-101",
+    "carrier_code": "CAR-12",
+    "warehouse_code": "WH-MUM",
+    "sku": "SKU-MIC-012",
+    "quantity": 400,
+    "eta": "2026-11-01T12:00:00Z",
+    "origin": "Singapore",
+    "route_risk": 0.8,
+    "weather_severity": 0.7,
+    "customs_hours": 30,
+    "freight_cost": 5000
+  },
+  {
+    "shipment_code": "SHP-302",
+    "supplier_code": "SUP-102",
+    "carrier_code": "CAR-11",
+    "warehouse_code": "WH-PUN",
+    "sku": "SKU-CTRL-201",
+    "quantity": 250,
+    "eta": "2026-11-05T12:00:00Z",
+    "origin": "Yokohama",
+    "route_risk": 0.3,
+    "weather_severity": 0.2,
+    "customs_hours": 12,
+    "freight_cost": 2200
+  }
+]

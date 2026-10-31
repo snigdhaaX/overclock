@@ -1,3 +1,0 @@
-order_code,customer,sku,quantity,required_date,priority,shipment_code
-ORD-500,Vidya Robotics,SKU-MIC-012,240,2026-11-02,1,SHP-300
-ORD-501,Kaveri Instruments,SKU-MIC-012,160,2026-11-02,2,SHP-300

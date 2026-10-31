@@ -1,0 +1,5 @@
+code,name,country,category
+SUP-104,Valid Supplier Ltd,India,Electronics
+SUP-003,Tries To Overwrite An Existing Supplier,Nowhere,Electronics
+SUP-104,Duplicate Row In This File,India,Electronics
+,Missing Code Ltd,India,Electronics

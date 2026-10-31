@@ -1,0 +1,12 @@
+[
+  {
+    "sku": "SKU-CTRL-201",
+    "name": "PRD-201 Motor Controllers",
+    "category": "Electronics"
+  },
+  {
+    "sku": "SKU-RLY-202",
+    "name": "PRD-202 Industrial Relays",
+    "category": "Electronics"
+  }
+]

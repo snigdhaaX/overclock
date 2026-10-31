@@ -1,0 +1,16 @@
+[
+  {
+    "warehouse_code": "WH-PUN",
+    "sku": "SKU-CTRL-201",
+    "on_hand": 600,
+    "reserved": 100,
+    "safety": 50
+  },
+  {
+    "warehouse_code": "WH-HYD",
+    "sku": "SKU-RLY-202",
+    "on_hand": 300,
+    "reserved": 0,
+    "safety": 25
+  }
+]

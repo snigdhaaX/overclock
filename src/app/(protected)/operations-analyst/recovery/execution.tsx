@@ -88,6 +88,7 @@ export default function ExecutionTrackingScreen() {
   }));
 
   const loadVerification = useCallback(async () => {
+    if (isBackendOnline()) return;
     try {
       const rep = await blockchainApi.verifyPlanIntegrity(trackingData.planId, 1);
       setVerificationReport(rep);
@@ -383,7 +384,7 @@ export default function ExecutionTrackingScreen() {
         )}
 
         {/* Verification Status */}
-        {verificationReport && <IntegrityVerificationCard report={verificationReport} />}
+        {!isBackendOnline() && verificationReport && <IntegrityVerificationCard report={verificationReport} />}
 
         {/* Issue Report Banner */}
         {reportedIssue && (

@@ -18,6 +18,8 @@ const ENTITIES = [
   { key: 'orders', label: 'Orders', columns: 'order_code, customer, sku, quantity, required_date, priority, and shipment_code or warehouse_code' },
 ];
 
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+
 type Mode = 'PARTIAL' | 'STRICT';
 
 interface ImportError {
@@ -82,10 +84,18 @@ export default function DataImportScreen() {
       setError('Choose a .csv or .json file.');
       return;
     }
+    if (file.size && file.size > MAX_FILE_BYTES) {
+      setError(`${file.name} is ${Math.round(file.size / 1048576)} MB. The limit is 5 MB, or 5,000 records.`);
+      return;
+    }
     setBusy('upload');
     setJob(null);
     try {
       const content = await (await fetch(file.uri)).text();
+      if (format === 'csv' && content.trim().split(/\r?\n/).length < 2) {
+        setError(`${file.name} only has a header row. Add at least one record under the column names.`);
+        return;
+      }
       setJob(await apiRequest<ImportJob>(`/imports/${format}`, { method: 'POST', body: { entity_type: entity, file_name: file.name, content, mode }, timeoutMs: 60000 }));
       await loadHistory();
     } catch (err: any) {
@@ -126,6 +136,7 @@ export default function DataImportScreen() {
             ))}
           </View>
           <Text style={styles.hint}>Columns: {selected.columns}</Text>
+          <Text style={styles.hint}>Import new data in the order shown, because later types refer to earlier ones.</Text>
 
           <Text style={[styles.cardTitle, styles.spaced]}>2. If some rows are invalid</Text>
           <View style={styles.chips}>

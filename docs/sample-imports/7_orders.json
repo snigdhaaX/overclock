@@ -1,0 +1,32 @@
+[
+  {
+    "order_code": "ORD-601",
+    "customer": "Vidya Robotics",
+    "sku": "SKU-MIC-012",
+    "quantity": 240,
+    "required_date": "2026-11-02T12:00:00Z",
+    "priority": 1,
+    "shipment_code": "SHP-301",
+    "destination": "Mumbai"
+  },
+  {
+    "order_code": "ORD-602",
+    "customer": "Kaveri Instruments",
+    "sku": "SKU-MIC-012",
+    "quantity": 160,
+    "required_date": "2026-11-02T12:00:00Z",
+    "priority": 2,
+    "shipment_code": "SHP-301",
+    "destination": "Pune"
+  },
+  {
+    "order_code": "ORD-603",
+    "customer": "Deccan Motors",
+    "sku": "SKU-CTRL-201",
+    "quantity": 120,
+    "required_date": "2026-11-09T12:00:00Z",
+    "priority": 3,
+    "warehouse_code": "WH-PUN",
+    "destination": "Pune"
+  }
+]

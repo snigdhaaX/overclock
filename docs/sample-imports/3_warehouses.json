@@ -1,0 +1,14 @@
+[
+  {
+    "code": "WH-PUN",
+    "name": "Pune West Hub",
+    "latitude": 18.52,
+    "longitude": 73.86
+  },
+  {
+    "code": "WH-HYD",
+    "name": "Hyderabad South Hub",
+    "latitude": 17.39,
+    "longitude": 78.49
+  }
+]

@@ -1,0 +1,12 @@
+[
+  {
+    "code": "CAR-11",
+    "name": "BlueDart Freight",
+    "capacity": 4000
+  },
+  {
+    "code": "CAR-12",
+    "name": "Maersk Line",
+    "capacity": 9000
+  }
+]

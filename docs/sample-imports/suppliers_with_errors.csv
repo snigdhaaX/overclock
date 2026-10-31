@@ -1,6 +1,0 @@
-supplier_code,supplier_name,country,category
-SUP-020,Bharat Circuits Pvt Ltd,India,Electronics
-SUP-021,Kyoto Precision Co,Japan,Electronics
-SUP-003,Overwrite Attempt Ltd,Nowhere,Electronics
-SUP-020,Duplicate Row Ltd,India,Electronics
-,Missing Code Ltd,India,Electronics

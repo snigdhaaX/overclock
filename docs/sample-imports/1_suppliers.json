@@ -1,0 +1,20 @@
+[
+  {
+    "code": "SUP-101",
+    "name": "Bharat Circuits Pvt Ltd",
+    "country": "India",
+    "category": "Electronics"
+  },
+  {
+    "code": "SUP-102",
+    "name": "Kyoto Precision Co",
+    "country": "Japan",
+    "category": "Electronics"
+  },
+  {
+    "code": "SUP-103",
+    "name": "Rhine Sensor Works",
+    "country": "Germany",
+    "category": "Sensors"
+  }
+]

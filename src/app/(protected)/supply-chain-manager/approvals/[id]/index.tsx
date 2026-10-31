@@ -33,6 +33,8 @@ import StatusBadge from '@/features/operations-analyst/components/StatusBadge';
 import ManagerHeader from '@/features/supply-chain-manager/components/ManagerHeader';
 import managerService from '@/features/supply-chain-manager/services/managerService';
 import { blockchainApi } from '@/services/blockchainApi';
+import { isBackendOnline } from '@/services/backendSync';
+import { ChainProof } from '@/features/supply-chain-manager/components/ChainProof';
 import { useBlockchainWallet } from '@/hooks/useBlockchainWallet';
 import {
   WalletConnectionCard,
@@ -63,6 +65,8 @@ export default function RecoveryPlanReviewScreen() {
   const [loadingAudit, setLoadingAudit] = useState(false);
 
   const loadBlockchainVerification = useCallback(async () => {
+    // These checks belong to the wallet-signed path. Server-signed plans are verified by ChainProof.
+    if (isBackendOnline()) return;
     setLoadingAudit(true);
     try {
       // 1. Full 15-point cryptographic integrity check
@@ -135,19 +139,23 @@ export default function RecoveryPlanReviewScreen() {
           <View style={styles.submitterBar}>
             <User size={13} color="#0D9488" style={{ marginRight: 4 }} />
             <Text style={styles.submitterLabel}>Formulated by:</Text>
-            <Text style={styles.submitterName}>{plan.submittedBy || 'Anishwath (Operations Analyst)'}</Text>
-            <Text style={styles.submitterTime}>• {plan.submittedAt || 'Today, 09:12 AM'}</Text>
+            <Text style={styles.submitterName}>{plan.submittedBy || 'Not submitted yet'}</Text>
+            <Text style={styles.submitterTime}>• {plan.submittedAt || '—'}</Text>
           </View>
         </View>
 
+        {isBackendOnline() && plan.planHash ? <ChainProof planId={plan.id} txHash={plan.txHash} /> : null}
+
         {/* 1. Wallet Authentication for Manager */}
-        <WalletConnectionCard
-          requiredRole="supply-chain-manager"
-          onWalletConnected={() => loadBlockchainVerification()}
-        />
+        {!isBackendOnline() && (
+          <WalletConnectionCard
+            requiredRole="supply-chain-manager"
+            onWalletConnected={() => loadBlockchainVerification()}
+          />
+        )}
 
         {/* 2. Cryptographic Integrity Verification Card */}
-        <IntegrityVerificationCard report={verificationReport} loading={loadingAudit} />
+        {!isBackendOnline() && <IntegrityVerificationCard report={verificationReport} loading={loadingAudit} />}
 
         {/* 3. Canonical Plan Hash Card */}
         {verificationReport && (
@@ -169,7 +177,7 @@ export default function RecoveryPlanReviewScreen() {
         )}
 
         {/* 5. On-Chain Decision History */}
-        <GovernanceDecisionCard decisions={decisions} />
+        {!isBackendOnline() && <GovernanceDecisionCard decisions={decisions} />}
 
         {/* Financial & Policy Threshold Summary */}
         <View style={styles.sectionCard}>
