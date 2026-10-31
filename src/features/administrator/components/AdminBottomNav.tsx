@@ -38,7 +38,7 @@ export const AdminBottomNav: React.FC = () => {
       title: 'Data Ingestion (CSV / JSON)',
       subtitle: 'Bulk upload suppliers, inventory & shipments (PRD Mod 4)',
       icon: <UploadCloud size={20} color="#EA580C" />,
-      route: '/(protected)/administrator/data-import',
+      route: '/(protected)/administrator/imports',
     },
     {
       title: 'Organisations & Facilities',
