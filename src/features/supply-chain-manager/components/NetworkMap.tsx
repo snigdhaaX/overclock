@@ -23,6 +23,7 @@ import {
 import Constants from 'expo-constants';
 import MapView, { Marker, Polyline, UrlTile } from 'react-native-maps';
 import { OrderRoute, RouteStop } from '../types';
+import { LeafletRouteMap } from './LeafletRouteMap';
 
 interface NetworkMapProps {
   routes: OrderRoute[];
@@ -96,12 +97,20 @@ export const NetworkMap: React.FC<NetworkMapProps> = ({
 
   if (!MAP_AVAILABLE) {
     return (
-      <View style={{ padding: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF6FF', borderRadius: 14, minHeight: 180 }}>
-        <Text style={{ fontSize: 14, fontWeight: '700', color: '#10234D', marginBottom: 4 }}>Map unavailable on this build</Text>
-        <Text style={{ fontSize: 12, lineHeight: 17, color: '#475569', textAlign: 'center' }}>
-          This Android build has no Google Maps key. Routes and shipments are still listed on this screen.
-        </Text>
-      </View>
+      <LeafletRouteMap
+        routes={routes}
+        selectedRouteId={selectedRouteId}
+        onSelectRoute={onSelectRoute}
+        onSelectStop={(orderId, stopId) => {
+          const route = routes.find((r) => r.orderId === orderId);
+          const stop = route?.stops.find((s) => s.id === stopId);
+          if (!route || !stop) return;
+          onSelectMarker({
+            type: stop.type, title: stop.name, location: stop.location, coordinate: stop.coordinate,
+            details: { orderId: route.orderId, customer: route.customer, carrier: route.carrier, status: stop.status, notes: stop.notes },
+          });
+        }}
+      />
     );
   }
 
