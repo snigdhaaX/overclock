@@ -6,7 +6,21 @@ import re
 import threading
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
-import jcs
+try:
+    import jcs
+except ImportError:
+    class _JCSFallback:
+        @staticmethod
+        def canonicalize(obj: Any) -> bytes:
+            return json.dumps(
+                obj,
+                ensure_ascii=False,
+                allow_nan=False,
+                indent=None,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+    jcs = _JCSFallback
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 

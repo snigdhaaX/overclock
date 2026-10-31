@@ -97,7 +97,7 @@ from backend.app.blockchain.verification_service import PlanVerificationService
 
 init_db()
 db = SessionLocal()
-contract_svc = ContractService()
+contract_svc = ContractService(rpc_url=RPC_URL, contract_address=CONTRACT_ADDRESS)
 
 # Create nonce for Creator
 nonce_obj = WalletService.create_nonce(db, user_id="USR-ANALYST-101", organization_id="ORG-APEX-GLOBAL")
@@ -119,7 +119,7 @@ print(f"  - Wallet Linked Successfully: {link_res['status']} for {link_res['wall
 
 # STEP 4: Canonical Plan Creation & Hashing (RFC 8785)
 print("\n[Step 4] Canonical Plan Creation & RFC 8785 SHA-256 Hashing...")
-plan_id = "RCP-LIVE-2026-001"
+plan_id = f"RCP-LIVE-{int(time.time())}"
 plan_version = 1
 plan_data = {
     "plan_id": plan_id,

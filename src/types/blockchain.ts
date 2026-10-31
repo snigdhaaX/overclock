@@ -151,8 +151,10 @@ export interface TrackedTransaction {
     | 'PENDING'
     | 'SUBMITTED'
     | 'INCLUDED'
+    | 'CONFIRMING'
     | 'CONFIRMED'
     | 'FAILED'
+    | 'REORGED'
     | 'REORG_REVIEW';
   receipt_status?: number | null;
   confirmations: number;

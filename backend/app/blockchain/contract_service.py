@@ -205,6 +205,16 @@ class ContractService:
 
     # --- Transaction & Receipt Querying ---
 
+    def get_transaction(self, tx_hash: str) -> Optional[Dict[str, Any]]:
+        """Queries the RPC node for full transaction details (sender, target, calldata, gas)."""
+        try:
+            tx = self.w3.eth.get_transaction(tx_hash)
+            return dict(tx)
+        except TransactionNotFound:
+            return None
+        except Exception as e:
+            raise RuntimeError(f"Error querying RPC for transaction {tx_hash}: {str(e)}")
+
     def get_transaction_receipt(self, tx_hash: str) -> Optional[Dict[str, Any]]:
         try:
             receipt = self.w3.eth.get_transaction_receipt(tx_hash)

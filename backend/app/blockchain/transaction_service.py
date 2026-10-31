@@ -48,7 +48,7 @@ class TransactionService:
                 plan_version=plan_version,
                 status="SUBMITTED",
                 confirmations=0,
-                created_at=datetime.datetime.utcnow(),
+                created_at=datetime.datetime.now(datetime.timezone.utc),
             )
             db.add(tx)
             db.commit()
@@ -115,6 +115,17 @@ class TransactionService:
         tx.receipt_status = receipt_status
         tx.gas_used = gas_used
 
+        # Revalidate destination contract if available
+        if getattr(contract_service, "contract_address", None) and receipt.get("to"):
+            expected_addr = contract_service.contract_address.lower()
+            actual_addr = receipt["to"].lower()
+            if actual_addr != expected_addr and tx.contract_address != actual_addr:
+                tx.status = "FAILED"
+                tx.error_message = f"Transaction destination {actual_addr} does not match expected governance contract {expected_addr}."
+                db.commit()
+                db.refresh(tx)
+                return tx
+
         if receipt_status == 0:
             tx.status = "FAILED"
             tx.error_message = "Transaction execution reverted on-chain."
@@ -136,7 +147,7 @@ class TransactionService:
             if receipt_status == 1:
                 tx.status = "CONFIRMED"
                 if not tx.confirmed_at:
-                    tx.confirmed_at = datetime.datetime.utcnow()
+                    tx.confirmed_at = datetime.datetime.now(datetime.timezone.utc)
                 tx.error_message = None
             else:
                 tx.status = "FAILED"
@@ -156,10 +167,10 @@ class TransactionService:
         db: Session,
         contract_service: ContractService,
     ) -> List[BlockchainTransaction]:
-        """Reconciliation routine after backend restart to reconcile SUBMITTED/PENDING/INCLUDED txs."""
+        """Reconciliation routine after backend restart to reconcile SUBMITTED/PENDING/INCLUDED/CONFIRMING txs."""
         unconfirmed = (
             db.query(BlockchainTransaction)
-            .filter(BlockchainTransaction.status.in_(["SUBMITTED", "PENDING", "INCLUDED"]))
+            .filter(BlockchainTransaction.status.in_(["SUBMITTED", "PENDING", "INCLUDED", "CONFIRMING"]))
             .all()
         )
         reconciled = []

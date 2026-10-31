@@ -1,9 +1,11 @@
+import { LAPTOP_LAN_IP } from '../constants/api';
+
 export const TRUSTCHAIN_GOVERNANCE_ABI = [
   // Governance Mutating Functions
   'function anchorPlan(bytes32 planId, uint32 version, bytes32 planHash, bytes32 simulationHash, uint8 actionMask, uint8 requiredStages) external',
   'function approvePlan(bytes32 planId, uint32 version, uint8 stage) external',
-  'function rejectPlan(bytes32 planId, uint32 version, bytes32 reasonHash) external',
-  'function requestRevision(bytes32 planId, uint32 version, bytes32 reasonHash) external',
+  'function rejectPlan(bytes32 planId, uint32 version, uint8 stage, bytes32 reasonHash) external',
+  'function requestRevision(bytes32 planId, uint32 version, uint8 stage, bytes32 reasonHash) external',
   'function anchorExecution(bytes32 planId, uint32 version, bytes32 evidenceHash) external',
   'function anchorExecutionEvidence(bytes32 planId, uint32 version, bytes32 executionEvidenceHash) external',
 
@@ -18,8 +20,8 @@ export const TRUSTCHAIN_GOVERNANCE_ABI = [
   // Events
   'event PlanAnchored(bytes32 indexed planId, uint32 indexed version, bytes32 planHash, bytes32 simulationHash, bytes32 orgId, address indexed creator, uint8 actionMask, uint8 requiredStages, uint64 timestamp)',
   'event PlanApproved(bytes32 indexed planId, uint32 indexed version, address indexed approver, uint8 stage, uint64 timestamp)',
-  'event PlanRejected(bytes32 indexed planId, uint32 indexed version, address indexed rejector, bytes32 reasonHash, uint64 timestamp)',
-  'event RevisionRequested(bytes32 indexed planId, uint32 indexed version, address indexed requester, bytes32 reasonHash, uint64 timestamp)',
+  'event PlanRejected(bytes32 indexed planId, uint32 indexed version, address indexed rejector, uint8 stage, bytes32 reasonHash)',
+  'event RevisionRequested(bytes32 indexed planId, uint32 indexed version, address indexed requester, uint8 stage, bytes32 reasonHash)',
   'event ExecutionAnchored(bytes32 indexed planId, uint32 indexed version, address indexed executor, bytes32 evidenceHash)',
   'event ExecutionEvidenceAnchored(bytes32 indexed planId, uint32 indexed version, bytes32 evidenceHash, address indexed submitter, uint64 timestamp)',
   'event WalletRegistered(address indexed wallet, bytes32 orgId, uint8 categories, uint64 timestamp)',
@@ -37,12 +39,12 @@ export const CONTRACT_ADDRESSES = {
     chainId: 31337,
     address: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
     name: 'Hardhat Local Node',
-    explorer: 'http://localhost:8545',
+    explorer: `http://${LAPTOP_LAN_IP}:8545`,
   },
   local: {
     chainId: 31337,
     address: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
     name: 'Hardhat Local Node',
-    explorer: 'http://localhost:8545',
+    explorer: `http://${LAPTOP_LAN_IP}:8545`,
   },
 };

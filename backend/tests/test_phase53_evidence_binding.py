@@ -14,6 +14,7 @@ F. Security (cross-tenant rejection, frontend hash manipulation prevention, zero
 import datetime
 import hashlib
 import json
+import os
 import subprocess
 from unittest.mock import MagicMock
 import pytest
@@ -282,7 +283,7 @@ def test_cross_language_rfc8785_recovery_plan_vectors():
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        cwd=r"d:\OVERCLOCK'26\blockchain",
+        cwd=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "blockchain")),
     )
     stdout, stderr = node_proc.communicate(input=json.dumps(payload).encode("utf-8"))
     assert node_proc.returncode == 0, f"Node script error: {stderr.decode('utf-8')}"

@@ -83,9 +83,27 @@ def get_current_org_user(
             detail="Public wallet address provided without cryptographic session token. Wallet authentication requires an EIP-191 signature bound to a server-generated single-use nonce.",
         )
 
-    # 3. Unauthenticated header checks
+    # 3. Environment-based authentication separation
+    import os, logging
+    logger = logging.getLogger("trustchain.auth")
+    is_prod = os.getenv("ENVIRONMENT", "development").lower() in ("production", "prod")
+    allow_dev = not is_prod and os.getenv("ALLOW_DEV_AUTH_HEADERS", "true").lower() in ("true", "1", "yes")
+    if not allow_dev:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Production mode requires authenticated Bearer session token. Client identity headers are forbidden.",
+        )
+
+    # Unauthenticated header checks (development mode only with security warning)
     user_id = (x_user_id or "user:ops-analyst-88").strip()
     org_id = (x_org_id or "ORG-APEX-GLOBAL").strip()
+
+    logger.warning(
+        "SECURITY NOTICE [DEV-ONLY AUTH]: Authenticating supply chain request via insecure client headers (user=%s, org=%s). "
+        "In production mode, this request will be rejected with HTTP 401.",
+        user_id,
+        org_id,
+    )
 
     # If user_id is registered to a specific organization in the DB, enforce it
     existing_wallets = (

@@ -77,3 +77,7 @@ __pycache__/
 *.sqlite3
 **/backend/data/*.db
 trustchain.db
+
+# Demo Launcher Runtime State
+.demo-runtime/
+*.command.log

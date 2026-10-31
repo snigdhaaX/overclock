@@ -1,25 +1,8 @@
-import { Platform } from 'react-native';
 import authService, { TokenStorage } from './auth';
 import { SupplierProfile } from '../features/supply-chain-manager/types';
+import { API_BASE_URL, getApiBaseUrl } from '../constants/api';
 
-// LAN IP for physical device testing; localhost for emulator/simulator/web
-const DEV_LAN_IP = '172.31.98.170';
-const DEFAULT_PORT = '8000';
-
-export function getApiBaseUrl(): string {
-  // Allow explicit environment override
-  if (process.env.EXPO_PUBLIC_API_BASE_URL) {
-    return process.env.EXPO_PUBLIC_API_BASE_URL;
-  }
-
-  // Web or emulator can use localhost, but physical devices require LAN IP
-  if (Platform.OS === 'web') {
-    return `http://localhost:${DEFAULT_PORT}`;
-  }
-
-  // Physical phone or emulator network
-  return `http://${DEV_LAN_IP}:${DEFAULT_PORT}`;
-}
+export { API_BASE_URL, getApiBaseUrl };
 
 export class BackendSyncService {
   private get baseUrl(): string {

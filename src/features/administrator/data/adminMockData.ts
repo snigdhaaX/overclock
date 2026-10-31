@@ -8,6 +8,7 @@ import {
   SystemRiskPolicies,
   WarehouseRecord,
 } from '../types';
+import { API_BASE_URL } from '@/constants/api';
 
 export const INITIAL_ADMIN_USERS: AdminUser[] = [
   {
@@ -368,7 +369,7 @@ export const INITIAL_INTEGRATIONS: ExternalIntegration[] = [
     name: 'FastAPI Backend Engine',
     systemType: 'FastAPI',
     purpose: 'Core REST services, Disruption Graph traversal & optimization algorithms',
-    endpointUrl: 'http://localhost:8000',
+    endpointUrl: API_BASE_URL,
     protocol: 'REST / HTTP/1.1 (JSON)',
     status: 'Disconnected',
     lastCheckTimestamp: '2026-10-31T00:40:00Z',
@@ -559,7 +560,7 @@ export const INITIAL_HEALTH_METRICS: SystemHealthMetric[] = [
     latencyMs: 0,
     uptimePercentage: 0,
     lastChecked: '2026-10-31T00:50:00Z',
-    message: 'Local server process not running at 127.0.0.1:8000',
+    message: `FastAPI server configured at ${API_BASE_URL}`,
   },
   {
     serviceId: 'srv_db',

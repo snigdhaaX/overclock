@@ -127,24 +127,25 @@ export default function ExecutionTrackingScreen() {
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+
+        // File size validation: 10 MB maximum
+        const MAX_FILE_SIZE = 10 * 1024 * 1024;
+        if (asset.fileSize && asset.fileSize > MAX_FILE_SIZE) {
+          Alert.alert('File Too Large', 'Evidence file size must not exceed 10 MB.');
+          return;
+        }
+
         setEvidenceUri(asset.uri);
 
-        // Compute deterministic SHA-256 evidence fingerprint
-        const evidencePayload = {
-          plan_id: trackingData.planId,
-          version: 1,
-          description: evidenceDescription,
-          filename: asset.fileName || 'delivery_evidence.jpg',
-          fileSize: asset.fileSize || 1024,
-          timestamp: new Date().toISOString(),
-        };
-
-        const jsonString = JSON.stringify(evidencePayload);
-        const computedHash = ethers.keccak256(ethers.toUtf8Bytes(jsonString));
+        // Compute canonical SHA-256 evidence fingerprint over binary content & plan-bound metadata
+        const fileContent = asset.base64 || asset.uri;
+        const payloadString = `PLAN:${trackingData.planId}:V1:${asset.fileName || 'delivery_evidence.jpg'}:${asset.fileSize || 0}:${fileContent}`;
+        const computedHash = ethers.sha256(ethers.toUtf8Bytes(payloadString));
         setEvidenceHash(computedHash);
       }
     } catch (err: any) {
@@ -214,14 +215,23 @@ export default function ExecutionTrackingScreen() {
   };
 
   const handleRegisterManualTx = async () => {
-    if (!manualTxHash.trim()) {
+    const cleanHash = manualTxHash.trim();
+    if (!cleanHash) {
       Alert.alert('Missing Tx Hash', 'Please enter transaction hash.');
+      return;
+    }
+    const hexPattern = /^0x[0-9a-fA-F]{64}$/;
+    if (!hexPattern.test(cleanHash)) {
+      Alert.alert(
+        'Invalid Tx Hash Format',
+        'Transaction hash must be a 66-character hexadecimal string beginning with "0x".'
+      );
       return;
     }
 
     try {
       const tx = await registerTransaction(
-        manualTxHash.trim(),
+        cleanHash,
         'anchorExecution',
         trackingData.planId,
         1

@@ -26,6 +26,7 @@ import {
   TextInput,
   View,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ActionCard from '../../../../features/operations-analyst/components/ActionCard';
@@ -36,6 +37,7 @@ import { RecoveryPlan } from '../../../../features/operations-analyst/types';
 import { blockchainApi } from '../../../../services/blockchainApi';
 import { useBlockchainWallet } from '../../../../hooks/useBlockchainWallet';
 import { ContractEncoder } from '../../../../services/contractEncoder';
+import { ethers } from 'ethers';
 import {
   PlanHashCard,
   EvidenceManifestCard,
@@ -76,27 +78,58 @@ export default function PlanReviewAndSubmitScreen() {
   const [manualTxHash, setManualTxHash] = useState('');
   const [loadingChainData, setLoadingChainData] = useState(false);
 
+  // Deterministic canonical RFC 8785 simulation digest from Monte Carlo output
+  const computeCanonicalSimulationDigest = useCallback((targetPlan: RecoveryPlan): string => {
+    if ((targetPlan as any).simulationHash) {
+      return (targetPlan as any).simulationHash;
+    }
+    if (targetPlan.feasibilityScore && targetPlan.feasibilityScore > 0) {
+      const canonicalSim = {
+        disruption_id: targetPlan.relatedDisruptionId,
+        estimated_cost_usd: targetPlan.estimatedCost,
+        feasibility_score: targetPlan.feasibilityScore,
+        iterations: 10000,
+        plan_id: targetPlan.id,
+        schema: 'trustchain-monte-carlo-v1',
+      };
+      const sortedKeys = Object.keys(canonicalSim).sort();
+      const sortedObj: Record<string, any> = {};
+      for (const k of sortedKeys) {
+        sortedObj[k] = (canonicalSim as any)[k];
+      }
+      return ethers.sha256(ethers.toUtf8Bytes(JSON.stringify(sortedObj)));
+    }
+    return '';
+  }, []);
+
   // Build canonical plan data dictionary
   const buildPlanData = useCallback(
-    (targetPlan: RecoveryPlan) => ({
-      plan_id: targetPlan.id,
-      version: 1,
-      disruption_id: targetPlan.relatedDisruptionId,
-      organization_id: 'ORG-APEX-GLOBAL',
-      title: targetPlan.planName,
-      strategy: targetPlan.strategy || targetPlan.description,
-      estimated_cost: targetPlan.estimatedCost,
-      actions: targetPlan.actions.map((a) => ({
-        id: a.id,
-        title: a.title,
-        action_type: a.type || 'reroute',
-        cost: a.estimatedCost || 0,
-        timeline: a.leadTime || '2 days',
-      })),
-      constraints: targetPlan.constraints,
-      schema_version: 'trustchain-recovery-plan-v2',
-    }),
-    []
+    (targetPlan: RecoveryPlan) => {
+      const simDigest = computeCanonicalSimulationDigest(targetPlan);
+      const data: Record<string, any> = {
+        plan_id: targetPlan.id,
+        version: 1,
+        disruption_id: targetPlan.relatedDisruptionId,
+        organization_id: 'ORG-APEX-GLOBAL',
+        title: targetPlan.planName,
+        strategy: targetPlan.strategy || targetPlan.description,
+        estimated_cost: targetPlan.estimatedCost,
+        actions: targetPlan.actions.map((a) => ({
+          id: a.id,
+          title: a.title,
+          action_type: a.type || 'reroute',
+          cost: a.estimatedCost || 0,
+          timeline: a.leadTime || '2 days',
+        })),
+        constraints: targetPlan.constraints,
+        schema_version: 'trustchain-recovery-plan-v2',
+      };
+      if (simDigest) {
+        data.simulation_hash = simDigest;
+      }
+      return data;
+    },
+    [computeCanonicalSimulationDigest]
   );
 
   // Fetch canonical hash and on-chain state
@@ -204,8 +237,15 @@ export default function PlanReviewAndSubmitScreen() {
       await blockchainApi.storeOperationalPlan(plan.id, 1, planPayload);
 
       // 2. Prepare anchorPlan transaction
-      // Default simulation hash from deterministic seed
-      const simHash = '0x' + '1'.repeat(64);
+      // Retrieve canonical simulation digest from validated Monte Carlo simulation
+      const simHash = computeCanonicalSimulationDigest(plan);
+      if (!simHash) {
+        Alert.alert(
+          'Missing Simulation Commitment',
+          'A validated Monte Carlo simulation is required before anchoring. Please run simulation first.'
+        );
+        return;
+      }
       const actionMask = 0x01 | 0x04; // Warehouse Transfer + Shipment Reroute
       const requiredStages = 0x02; // Stage 0x02: CAT_SUPPLY_CHAIN_MANAGER
       const isLocal = chainId === 31337;
@@ -247,13 +287,22 @@ export default function PlanReviewAndSubmitScreen() {
   };
 
   const handleRegisterManualTx = async () => {
-    if (!manualTxHash.trim()) {
+    const cleanHash = manualTxHash.trim();
+    if (!cleanHash) {
       Alert.alert('Missing Tx Hash', 'Please enter the transaction hash from MetaMask.');
+      return;
+    }
+    const hexPattern = /^0x[0-9a-fA-F]{64}$/;
+    if (!hexPattern.test(cleanHash)) {
+      Alert.alert(
+        'Invalid Tx Hash Format',
+        'Transaction hash must be a 66-character hexadecimal string beginning with "0x".'
+      );
       return;
     }
 
     try {
-      const tx = await registerTransaction(manualTxHash.trim(), 'anchorPlan', plan.id, 1);
+      const tx = await registerTransaction(cleanHash, 'anchorPlan', plan.id, 1);
       setActiveTx(tx);
       setShowTxInput(false);
       setManualTxHash('');
@@ -355,6 +404,57 @@ export default function PlanReviewAndSubmitScreen() {
             isAnchored={true}
           />
         )}
+
+        {/* 4. On-Chain Governance & Simulation Parameters */}
+        <View style={styles.govParamsCard}>
+          <View style={styles.govParamsHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={styles.govIconBox}>
+                <Radio size={15} color="#2563EB" />
+              </View>
+              <View>
+                <Text style={styles.govParamsTitle}>On-Chain Governance Parameters</Text>
+                <Text style={styles.govParamsSubtitle}>Smart contract commitment metadata</Text>
+              </View>
+            </View>
+            <View style={styles.stagePill}>
+              <Text style={styles.stagePillText}>Stage 0x02</Text>
+            </View>
+          </View>
+
+          <View style={styles.govGrid}>
+            <View style={styles.govRow}>
+              <Text style={styles.govLabel}>Recovery Plan ID:</Text>
+              <Text style={styles.govVal}>{plan.id} (Version 1)</Text>
+            </View>
+            <View style={styles.govRow}>
+              <Text style={styles.govLabel}>Disruption Reference:</Text>
+              <Text style={styles.govVal}>{plan.relatedDisruptionId}</Text>
+            </View>
+            <View style={styles.govRow}>
+              <Text style={styles.govLabel}>Required Approval Stage:</Text>
+              <Text style={styles.govVal}>0x02 (Supply Chain Manager)</Text>
+            </View>
+            <View style={styles.govRow}>
+              <Text style={styles.govLabel}>Simulation Digest:</Text>
+              {computeCanonicalSimulationDigest(plan) ? (
+                <Text style={styles.govHashVal} numberOfLines={1} ellipsizeMode="middle">
+                  {computeCanonicalSimulationDigest(plan)}
+                </Text>
+              ) : (
+                <Text style={styles.govValUnavailable}>
+                  NOT AVAILABLE (Run Monte Carlo Simulation)
+                </Text>
+              )}
+            </View>
+            <View style={styles.govRow}>
+              <Text style={styles.govLabel}>On-Chain Status:</Text>
+              <Text style={[styles.govStatusBadge, onChainPlan && onChainPlan.status !== 'NONE' ? styles.statusAnchored : styles.statusDraft]}>
+                {onChainPlan ? onChainPlan.status : 'DRAFT • NOT ANCHORED'}
+              </Text>
+            </View>
+          </View>
+        </View>
 
         {/* 4. Active Transaction Status Card */}
         {activeTx && <TransactionStatusCard transaction={activeTx} />}
@@ -822,5 +922,99 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  govParamsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E6EAF1',
+    marginBottom: 12,
+  },
+  govParamsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  govIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  govParamsTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#10234D',
+  },
+  govParamsSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  stagePill: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  stagePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  govGrid: {
+    gap: 8,
+  },
+  govRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  govLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  govVal: {
+    fontSize: 11,
+    color: '#1E293B',
+    fontWeight: '600',
+  },
+  govHashVal: {
+    fontSize: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    color: '#2563EB',
+    maxWidth: '55%',
+  },
+  govValUnavailable: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#D97706',
+    maxWidth: '60%',
+  },
+  govStatusBadge: {
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  statusAnchored: {
+    backgroundColor: '#DCFCE7',
+    color: '#16A34A',
+  },
+  statusDraft: {
+    backgroundColor: '#FEF3C7',
+    color: '#D97706',
   },
 });

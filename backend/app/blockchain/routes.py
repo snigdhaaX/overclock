@@ -37,6 +37,18 @@ class AuthenticatedUser(BaseModel):
     wallet_address: Optional[str] = None
     session_id: Optional[str] = None
 
+import logging
+logger = logging.getLogger("trustchain.auth")
+
+def is_production_mode() -> bool:
+    env = os.getenv("ENVIRONMENT", getattr(settings, "ENVIRONMENT", "development")).lower()
+    return env in ("production", "prod")
+
+def allow_dev_headers() -> bool:
+    if is_production_mode():
+        return False
+    return os.getenv("ALLOW_DEV_AUTH_HEADERS", "true").lower() in ("true", "1", "yes")
+
 def get_current_user(
     authorization: Optional[str] = Header(None, alias="Authorization"),
     x_auth_token: Optional[str] = Header(None, alias="X-Auth-Token"),
@@ -46,7 +58,15 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> AuthenticatedUser:
     """
-    Extracts authenticated user context from cryptographic session or request headers.
+    Extracts authenticated user context with strict environment separation.
+    
+    1. Cryptographic session verification: If Authorization (Bearer) or X-Auth-Token is passed,
+       validates the cryptographic session token issued upon EIP-191 single-use nonce signature.
+       Derives user_id, organization_id, and wallet_address server-side.
+    2. In PRODUCTION: Client-controlled headers (X-User-Id, X-Organization-Id, X-User-Roles)
+       are strictly REJECTED without a valid session token (HTTP 401 Unauthorized).
+    3. In DEVELOPMENT: If explicit dev headers are enabled (allow_dev_headers()), allows header-based
+       identity with a security warning log.
     """
     token = authorization or x_auth_token
     if token:
@@ -63,11 +83,46 @@ def get_current_user(
                 wallet_address=session.wallet_address,
                 session_id=session.session_token,
             )
+        elif not allow_dev_headers():
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired session token. Please re-authenticate.",
+            )
 
-    user_id = x_user_id or "user:analyst-101"
-    org_id = x_org_id or "ORG-APEX-GLOBAL"
+    # In production, client identity headers are strictly rejected without a session token
+    if not allow_dev_headers():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Production mode requires authenticated Bearer session token. Client identity headers are forbidden.",
+        )
+
+    user_id = (x_user_id or "user:analyst-101").strip()
+    org_id = (x_org_id or "ORG-APEX-GLOBAL").strip()
     roles = [r.strip() for r in x_roles.split(",")] if x_roles else ["operations_analyst"]
+
+    logger.warning(
+        "SECURITY NOTICE [DEV-ONLY AUTH]: Authenticating request via insecure client headers (user=%s, org=%s). "
+        "In production mode, this request will be rejected with HTTP 401.",
+        user_id,
+        org_id,
+    )
+
     return AuthenticatedUser(user_id=user_id, organization_id=org_id, roles=roles)
+
+def _validate_tenant_plan_access(db: Session, plan_id: str, organization_id: str) -> None:
+    """Ensures operational plans strictly belong to the authenticated user's organization."""
+    if not plan_id:
+        return
+    op = (
+        db.query(OperationalRecoveryPlan)
+        .filter(OperationalRecoveryPlan.plan_id == plan_id)
+        .first()
+    )
+    if op and op.organization_id.strip().lower() != organization_id.strip().lower():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Plan '{plan_id}' not found.",
+        )
 
 LOCAL_HARDHAT_CHAIN_ID = 31337
 LOCAL_HARDHAT_RPC_URL = os.getenv("LOCAL_RPC_URL", "http://127.0.0.1:8545")
@@ -75,7 +130,14 @@ LOCAL_HARDHAT_CONTRACT_ADDRESS = os.getenv("LOCAL_CONTRACT_ADDRESS", "0x5FbDB231
 
 def resolve_contract_service(chain_id: Optional[int] = None) -> ContractService:
     """Resolves ContractService targeting local Hardhat or Polygon Amoy based on chain_id."""
-    if chain_id == LOCAL_HARDHAT_CHAIN_ID:
+    effective_cid = chain_id
+    if effective_cid is None:
+        try:
+            effective_cid = int(os.getenv("DEFAULT_CHAIN_ID", str(LOCAL_HARDHAT_CHAIN_ID)))
+        except ValueError:
+            effective_cid = LOCAL_HARDHAT_CHAIN_ID
+
+    if effective_cid == LOCAL_HARDHAT_CHAIN_ID:
         return ContractService(
             rpc_url=LOCAL_HARDHAT_RPC_URL,
             contract_address=LOCAL_HARDHAT_CONTRACT_ADDRESS,
@@ -104,7 +166,7 @@ class NonceResponse(BaseModel):
     message: str
 
 class VerifySignatureRequest(BaseModel):
-    wallet_address: str = Field(..., example="0x1234567890123456789012345678901234567890")
+    wallet_address: str = Field(..., json_schema_extra={"example": "0x1234567890123456789012345678901234567890"})
     nonce: str
     signature: str
 
@@ -414,9 +476,12 @@ def get_network_info(contract_service: ContractService = Depends(get_contract_se
 @router.get("/plan/{plan_id}/latest")
 def get_latest_plan_version(
     plan_id: str,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
     contract_service: ContractService = Depends(get_contract_service),
 ):
     """Retrieves the latest on-chain version number for a plan."""
+    _validate_tenant_plan_access(db, plan_id, user.organization_id)
     try:
         latest = contract_service.get_latest_version(plan_id)
         return {"plan_id": plan_id, "latest_version": latest}
@@ -427,9 +492,12 @@ def get_latest_plan_version(
 def get_on_chain_plan(
     plan_id: str,
     version: int,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
     contract_service: ContractService = Depends(get_contract_service),
 ):
     """Retrieves the on-chain PlanVersion record from the smart contract."""
+    _validate_tenant_plan_access(db, plan_id, user.organization_id)
     try:
         exists = contract_service.plan_exists(plan_id, version)
         if not exists:
@@ -444,9 +512,12 @@ def get_on_chain_plan(
 def get_plan_execution_eligibility(
     plan_id: str,
     version: int,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
     contract_service: ContractService = Depends(get_contract_service),
 ):
     """Checks contract-enforced execution eligibility for a specific version."""
+    _validate_tenant_plan_access(db, plan_id, user.organization_id)
     try:
         eligible, reason = contract_service.execution_eligibility(plan_id, version)
         return {
@@ -462,9 +533,12 @@ def get_plan_execution_eligibility(
 def get_plan_decisions(
     plan_id: str,
     version: int,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
     contract_service: ContractService = Depends(get_contract_service),
 ):
     """Retrieves ordered on-chain decisions (approvals, rejections, revisions)."""
+    _validate_tenant_plan_access(db, plan_id, user.organization_id)
     try:
         decisions = contract_service.get_decisions(plan_id, version)
         return {
@@ -500,6 +574,18 @@ def register_transaction(
     Registers a transaction hash broadcasted by MetaMask on the client side.
     Initial status: SUBMITTED.
     """
+    clean_hash = req.tx_hash.strip().lower()
+    if not clean_hash.startswith("0x"):
+        clean_hash = "0x" + clean_hash
+    if len(clean_hash) != 66 or not all(c in "0123456789abcdef" for c in clean_hash[2:]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid transaction hash format '{req.tx_hash}'. Expected a 66-character 0x-prefixed hex string.",
+        )
+
+    if req.plan_id:
+        _validate_tenant_plan_access(db, req.plan_id, user.organization_id)
+
     linked = WalletService.get_linked_wallet(db, user.user_id)
     submitter = linked["wallet_address"] if linked else "0x0000000000000000000000000000000000000000"
     chain_id = req.chain_id or (LOCAL_HARDHAT_CHAIN_ID if contract_service.validate_chain_id(LOCAL_HARDHAT_CHAIN_ID) else settings.POLYGON_AMOY_CHAIN_ID)
@@ -507,7 +593,7 @@ def register_transaction(
     
     tx = TransactionService.register_transaction(
         db=db,
-        tx_hash=req.tx_hash,
+        tx_hash=clean_hash,
         chain_id=chain_id,
         contract_address=getattr(svc, "contract_address", None) or "0x0",
         submitter_wallet=submitter,
@@ -520,6 +606,7 @@ def register_transaction(
 @router.get("/transactions/tracked")
 def list_tracked_transactions(
     limit: int = 50,
+    user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Retrieves list of recently tracked transactions."""
@@ -528,55 +615,72 @@ def list_tracked_transactions(
 @router.get("/transactions/{tx_hash}")
 def get_transaction_status(
     tx_hash: str,
+    user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
     contract_service: ContractService = Depends(get_contract_service),
 ):
     """Retrieves current tracked status, updating against RPC if still pending."""
-    tx = TransactionService.get_transaction(db, tx_hash)
+    clean_hash = tx_hash.strip().lower()
+    if not clean_hash.startswith("0x"):
+        clean_hash = "0x" + clean_hash
+    tx = TransactionService.get_transaction(db, clean_hash)
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found.")
     
+    if tx.get("plan_id"):
+        _validate_tenant_plan_access(db, tx["plan_id"], user.organization_id)
+
     svc = _get_target_contract_service(contract_service, tx.get("chain_id"))
-    if tx["status"] in ["SUBMITTED", "PENDING", "INCLUDED"]:
-        TransactionService.update_transaction_status(db, tx_hash, svc)
-        tx = TransactionService.get_transaction(db, tx_hash)
+    if tx["status"] in ["SUBMITTED", "PENDING", "INCLUDED", "CONFIRMING"]:
+        TransactionService.update_transaction_status(db, clean_hash, svc)
+        tx = TransactionService.get_transaction(db, clean_hash)
         
     return tx
 
 @router.post("/transactions/{tx_hash}/reconcile")
 def reconcile_transaction(
     tx_hash: str,
+    user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
     contract_service: ContractService = Depends(get_contract_service),
 ):
     """Forces an explicit reconciliation of transaction status from RPC receipt."""
-    tx = TransactionService.get_transaction(db, tx_hash)
+    clean_hash = tx_hash.strip().lower()
+    if not clean_hash.startswith("0x"):
+        clean_hash = "0x" + clean_hash
+    tx = TransactionService.get_transaction(db, clean_hash)
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found.")
 
+    if tx.get("plan_id"):
+        _validate_tenant_plan_access(db, tx["plan_id"], user.organization_id)
+
     svc = _get_target_contract_service(contract_service, tx.get("chain_id"))
-    updated = TransactionService.update_transaction_status(db, tx_hash, svc)
+    updated = TransactionService.update_transaction_status(db, clean_hash, svc)
     # Also index events if included or confirmed
-    if updated.status in ["INCLUDED", "CONFIRMED"] and getattr(svc, "contract_address", None):
+    if updated.status in ["INCLUDED", "CONFIRMING", "CONFIRMED"] and getattr(svc, "contract_address", None):
         try:
             EventListenerService.index_receipt_events(
                 db=db,
                 contract_service=svc,
-                tx_hash=tx_hash,
+                tx_hash=clean_hash,
                 chain_id=updated.chain_id,
             )
         except Exception:
             pass
-    return TransactionService.get_transaction(db, tx_hash)
+    return TransactionService.get_transaction(db, clean_hash)
 
 @router.get("/events")
 def get_events(
     plan_id: Optional[str] = None,
     version: Optional[int] = None,
     limit: int = 50,
+    user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Retrieves indexed smart contract events."""
+    if plan_id:
+        _validate_tenant_plan_access(db, plan_id, user.organization_id)
     return EventListenerService.get_events_for_plan(db, plan_id, version, limit=limit)
 
 # ===========================================================================

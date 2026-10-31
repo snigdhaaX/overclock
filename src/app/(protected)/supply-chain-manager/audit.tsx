@@ -13,6 +13,11 @@ import {
   FileText,
   User,
   Hash,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  ExternalLink,
+  Check,
 } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -56,6 +61,8 @@ export default function AuditActivityLogScreen() {
   const [events, setEvents] = useState<CombinedAuditEvent[]>([]);
   const [networkConnected, setNetworkConnected] = useState(true);
   const [chainId, setChainId] = useState<number | null>(80002);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
   const filterOptions = [
     { label: 'All', value: 'All' },
@@ -270,13 +277,22 @@ export default function AuditActivityLogScreen() {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             renderItem={({ item }) => {
               const badge = getEventBadge(item.eventName);
+              const isExpanded = expandedId === item.id;
               const truncatedActor =
                 item.actor.length > 14
                   ? `${item.actor.slice(0, 6)}...${item.actor.slice(-4)}`
                   : item.actor;
 
+              const handleCopyText = (val: string) => {
+                setCopiedHash(val);
+                setTimeout(() => setCopiedHash(null), 2000);
+              };
+
               return (
-                <View style={styles.eventCard}>
+                <Pressable
+                  style={styles.eventCard}
+                  onPress={() => setExpandedId(isExpanded ? null : item.id)}
+                >
                   <View style={styles.eventCardTop}>
                     <View style={styles.eventBadgeRow}>
                       <View style={[styles.typeBadge, { backgroundColor: badge.bg }]}>
@@ -293,12 +309,19 @@ export default function AuditActivityLogScreen() {
                       )}
                     </View>
 
-                    <Text style={styles.timestampText}>
-                      {new Date(item.timestamp).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.timestampText}>
+                        {new Date(item.timestamp).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                      {isExpanded ? (
+                        <ChevronUp size={14} color="#64748B" />
+                      ) : (
+                        <ChevronDown size={14} color="#64748B" />
+                      )}
+                    </View>
                   </View>
 
                   <View style={styles.actorRow}>
@@ -334,7 +357,86 @@ export default function AuditActivityLogScreen() {
                       {item.txHash}
                     </Text>
                   </View>
-                </View>
+
+                  {/* Expanded Transaction Details Drawer */}
+                  {isExpanded && (
+                    <View style={styles.expandedDrawer}>
+                      <View style={styles.drawerDivider} />
+
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Full Transaction Hash:</Text>
+                        <Pressable
+                          style={styles.detailCopyRow}
+                          onPress={() => handleCopyText(item.txHash)}
+                        >
+                          <Text style={styles.detailHashVal} numberOfLines={1} ellipsizeMode="middle">
+                            {item.txHash}
+                          </Text>
+                          {copiedHash === item.txHash ? (
+                            <Check size={12} color="#16A34A" />
+                          ) : (
+                            <Copy size={12} color="#64748B" />
+                          )}
+                        </Pressable>
+                      </View>
+
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Full Signer Address:</Text>
+                        <Pressable
+                          style={styles.detailCopyRow}
+                          onPress={() => handleCopyText(item.actor)}
+                        >
+                          <Text style={styles.detailHashVal} numberOfLines={1} ellipsizeMode="middle">
+                            {item.actor}
+                          </Text>
+                          {copiedHash === item.actor ? (
+                            <Check size={12} color="#16A34A" />
+                          ) : (
+                            <Copy size={12} color="#64748B" />
+                          )}
+                        </Pressable>
+                      </View>
+
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Timestamp (UTC / Local):</Text>
+                        <Text style={styles.detailVal}>
+                          {new Date(item.timestamp).toLocaleString()}
+                        </Text>
+                      </View>
+
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Lifecycle State & Verification:</Text>
+                        <Text style={styles.detailVal}>
+                          {item.status} • Cryptographically Audited
+                        </Text>
+                      </View>
+
+                      {item.details && (
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailLabel}>Event Data:</Text>
+                          <Text style={styles.detailValSmall} numberOfLines={3}>
+                            {item.details}
+                          </Text>
+                        </View>
+                      )}
+
+                      {item.planId && (
+                        <Pressable
+                          style={styles.viewPlanBtn}
+                          onPress={() => {
+                            router.push({
+                              pathname: '/(protected)/supply-chain-manager/approvals/[id]',
+                              params: { id: item.planId as string },
+                            });
+                          }}
+                        >
+                          <Text style={styles.viewPlanBtnText}>Inspect Plan in Approvals Portal</Text>
+                          <ExternalLink size={13} color="#2563EB" />
+                        </Pressable>
+                      )}
+                    </View>
+                  )}
+                </Pressable>
               );
             }}
             ListEmptyComponent={
@@ -564,5 +666,68 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 4,
     textAlign: 'center',
+  },
+  expandedDrawer: {
+    marginTop: 10,
+  },
+  drawerDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginBottom: 10,
+  },
+  detailRow: {
+    marginBottom: 8,
+  },
+  detailLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  detailVal: {
+    fontSize: 11,
+    color: '#0F172A',
+    fontWeight: '500',
+  },
+  detailValSmall: {
+    fontSize: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    color: '#475569',
+  },
+  detailCopyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  detailHashVal: {
+    fontSize: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    color: '#2563EB',
+    flex: 1,
+    marginRight: 6,
+  },
+  viewPlanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#EFF6FF',
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    marginTop: 6,
+  },
+  viewPlanBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563EB',
   },
 });

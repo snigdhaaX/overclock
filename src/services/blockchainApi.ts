@@ -18,25 +18,16 @@ import {
   RegisterTxRequest,
 } from '../types/blockchain';
 
-// Default host resolution for Expo mobile & web
-const getDefaultApiBase = (): string => {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-  // Android emulator routes host machine loopback to 10.0.2.2
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8000';
-  }
-  return 'http://localhost:8000';
-};
+import { getApiBaseUrl as getCentralApiBaseUrl, API_BASE_URL } from '../constants/api';
 
-let currentApiBase = getDefaultApiBase();
+let currentApiBase = getCentralApiBaseUrl();
 
 export const setApiBaseUrl = (url: string) => {
   currentApiBase = url.replace(/\/+$/, '');
 };
 
 export const getApiBaseUrl = (): string => currentApiBase;
+export { API_BASE_URL };
 
 export class BlockchainApiError extends Error {
   status: number;

@@ -80,11 +80,12 @@ export const ContractEncoder = {
   },
 
   /**
-   * Encodes rejectPlan(bytes32,uint32,bytes32)
+   * Encodes rejectPlan(bytes32,uint32,uint8,bytes32)
    */
   encodeRejectPlan(
     planId: string,
     version: number,
+    stage: number,
     reasonHash: string,
     isLocal: boolean = false
   ): PreparedTransaction {
@@ -92,6 +93,7 @@ export const ContractEncoder = {
     const data = iface.encodeFunctionData('rejectPlan', [
       encodeBytes32(planId),
       version,
+      stage,
       formattedReasonHash,
     ]);
 
@@ -104,11 +106,12 @@ export const ContractEncoder = {
   },
 
   /**
-   * Encodes requestRevision(bytes32,uint32,bytes32)
+   * Encodes requestRevision(bytes32,uint32,uint8,bytes32)
    */
   encodeRequestRevision(
     planId: string,
     version: number,
+    stage: number,
     reasonHash: string,
     isLocal: boolean = false
   ): PreparedTransaction {
@@ -116,6 +119,7 @@ export const ContractEncoder = {
     const data = iface.encodeFunctionData('requestRevision', [
       encodeBytes32(planId),
       version,
+      stage,
       formattedReasonHash,
     ]);
 

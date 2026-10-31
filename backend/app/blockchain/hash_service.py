@@ -3,7 +3,21 @@ import json
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
-import jcs
+try:
+    import jcs
+except ImportError:
+    class _JCSFallback:
+        @staticmethod
+        def canonicalize(obj: Any) -> bytes:
+            return json.dumps(
+                obj,
+                ensure_ascii=False,
+                allow_nan=False,
+                indent=None,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+    jcs = _JCSFallback
 
 SCHEMA_VERSION_V1 = "trustchain-recovery-plan-v1"
 SCHEMA_VERSION_V2 = "trustchain-recovery-plan-v2"

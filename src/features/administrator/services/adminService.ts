@@ -365,7 +365,7 @@ class AdminService {
       } catch {
         integration.status = 'Disconnected';
         latency = 0;
-        message = 'Local server unreachable at http://localhost:8000. Start FastAPI via uvicorn.';
+        message = `Server unreachable at ${integration.endpointUrl}. Ensure FastAPI is running.`;
       }
     } else if (integration.systemType === 'PostgreSQL') {
       await new Promise((resolve) => setTimeout(resolve, 600));

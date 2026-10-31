@@ -18,6 +18,7 @@ Tests:
 import datetime
 import hashlib
 import json
+import os
 import subprocess
 import pytest
 from fastapi.testclient import TestClient
@@ -331,7 +332,7 @@ def test_cross_language_canonical_hash_consistency():
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        cwd=r"d:\OVERCLOCK'26\blockchain",
+        cwd=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "blockchain")),
     )
     stdout, stderr = node_process.communicate(input=json.dumps(complex_data).encode("utf-8"))
     assert node_process.returncode == 0, f"Node script failed: {stderr.decode('utf-8')}"

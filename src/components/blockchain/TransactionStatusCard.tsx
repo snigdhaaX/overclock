@@ -15,10 +15,12 @@ export default function TransactionStatusCard({
   if (!transaction) return null;
 
   const isConfirmed = transaction.status === 'CONFIRMED';
+  const isConfirming = transaction.status === 'CONFIRMING';
   const isPending =
     transaction.status === 'SUBMITTED' ||
     transaction.status === 'PENDING' ||
     transaction.status === 'INCLUDED';
+  const isReorged = transaction.status === 'REORGED';
   const isFailed = transaction.status === 'FAILED';
 
   const txHash = transaction.tx_hash;
@@ -30,23 +32,28 @@ export default function TransactionStatusCard({
       style={[
         styles.card,
         isConfirmed && styles.cardConfirmed,
-        isPending && styles.cardPending,
-        isFailed && styles.cardFailed,
+        (isPending || isConfirming) && styles.cardPending,
+        (isFailed || isReorged) && styles.cardFailed,
       ]}
     >
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           {isConfirmed && <CheckCircle2 size={18} color="#16A34A" />}
-          {isPending && <ActivityIndicator size="small" color="#D97706" />}
+          {(isPending || isConfirming) && <ActivityIndicator size="small" color="#D97706" />}
+          {isReorged && <AlertTriangle size={18} color="#DC2626" />}
           {isFailed && <XCircle size={18} color="#DC2626" />}
 
           <View>
             <Text style={styles.title}>
               {isConfirmed
                 ? 'On-Chain Confirmation'
+                : isConfirming
+                ? `Confirming Depth (${transaction.confirmations || 1} Blocks)`
                 : isPending
-                ? 'Awaiting Block Confirmations'
-                : 'Transaction Failed'}
+                ? 'Awaiting Block Inclusion'
+                : isReorged
+                ? 'Chain Reorganization Detected'
+                : 'Transaction Reverted'}
             </Text>
             <Text style={styles.functionName}>
               Function: <Text style={{ fontWeight: '700' }}>{transaction.function_name || 'Contract Call'}</Text>
@@ -58,16 +65,16 @@ export default function TransactionStatusCard({
           style={[
             styles.statusPill,
             isConfirmed && styles.statusPillConfirmed,
-            isPending && styles.statusPillPending,
-            isFailed && styles.statusPillFailed,
+            (isPending || isConfirming) && styles.statusPillPending,
+            (isFailed || isReorged) && styles.statusPillFailed,
           ]}
         >
           <Text
             style={[
               styles.statusText,
               isConfirmed && styles.statusTextConfirmed,
-              isPending && styles.statusTextPending,
-              isFailed && styles.statusTextFailed,
+              (isPending || isConfirming) && styles.statusTextPending,
+              (isFailed || isReorged) && styles.statusTextFailed,
             ]}
           >
             {transaction.status}

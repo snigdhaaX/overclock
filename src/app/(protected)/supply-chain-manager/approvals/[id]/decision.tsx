@@ -261,14 +261,14 @@ export default function ApprovalDecisionScreen() {
         }
         funcName = 'rejectPlan';
         const reasonHash = ContractEncoder.hashString(rejectionReason);
-        prepTx = ContractEncoder.encodeRejectPlan(plan.id, 1, reasonHash, isLocal);
+        prepTx = ContractEncoder.encodeRejectPlan(plan.id, 1, 0x02, reasonHash, isLocal);
       } else if (decisionMode === 'changes') {
         if (!changeRequirements.trim()) {
           throw new Error('Please specify required modifications before returning to analyst.');
         }
         funcName = 'requestRevision';
         const reasonHash = ContractEncoder.hashString(changeRequirements);
-        prepTx = ContractEncoder.encodeRequestRevision(plan.id, 1, reasonHash, isLocal);
+        prepTx = ContractEncoder.encodeRequestRevision(plan.id, 1, 0x02, reasonHash, isLocal);
       }
 
       if (!prepTx) {
@@ -299,8 +299,17 @@ export default function ApprovalDecisionScreen() {
   };
 
   const handleRegisterManualTx = async () => {
-    if (!manualTxHash.trim()) {
+    const cleanHash = manualTxHash.trim();
+    if (!cleanHash) {
       Alert.alert('Missing Tx Hash', 'Please enter the transaction hash from MetaMask.');
+      return;
+    }
+    const hexPattern = /^0x[0-9a-fA-F]{64}$/;
+    if (!hexPattern.test(cleanHash)) {
+      Alert.alert(
+        'Invalid Tx Hash Format',
+        'Transaction hash must be a 66-character hexadecimal string beginning with "0x".'
+      );
       return;
     }
 
@@ -312,7 +321,7 @@ export default function ApprovalDecisionScreen() {
           ? 'rejectPlan'
           : 'requestRevision';
 
-      const tx = await registerTransaction(manualTxHash.trim(), funcName, plan.id, 1);
+      const tx = await registerTransaction(cleanHash, funcName, plan.id, 1);
       setActiveTx(tx);
       setShowManualTx(false);
       setManualTxHash('');
