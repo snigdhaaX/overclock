@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 from web3 import Web3
+from web3.middleware import ExtraDataToPOAMiddleware
 from ..blockchain.config import settings
 
 STAGE_MANAGER = 0x02
@@ -42,7 +43,10 @@ def _contract(w3: Web3):
 
 
 def _client() -> Web3:
-    return Web3(Web3.HTTPProvider(_rpc_url(), request_kwargs={"timeout": 20}))
+    w3 = Web3(Web3.HTTPProvider(_rpc_url(), request_kwargs={"timeout": 20}))
+    # Polygon's blocks carry extra signer data that web3 otherwise rejects.
+    w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+    return w3
 
 
 def _send(w3: Web3, role: str, function) -> str:

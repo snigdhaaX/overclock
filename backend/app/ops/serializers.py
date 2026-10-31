@@ -214,7 +214,7 @@ def bootstrap(db: Session, org: Organization, user: User) -> Dict[str, Any]:
             "planId": plan.plan_key, "planName": plan.title, "disruptionId": disruption.code, "overallProgress": 100 if run.status == "COMPLETED" else 50,
             "status": "Completed" if run.status == "COMPLETED" else "In Progress", "approvedBy": users[approval.approver_id].full_name if approval else "", "approvedAt": _stamp(approval.decided_at) if approval else "",
             "stages": [
-                {"id": str(s.id), "title": (s.result or {}).get("summary", "Action"), "status": "Completed" if s.status == "SUCCEEDED" else "In Progress", "timestamp": _stamp(s.finished_at), "responsibleRole": "Simulated execution", "responsibleParty": "TRUSTCHAIN", "details": "Simulated action, recorded in the audit trail.", "progressPercent": 100 if s.status == "SUCCEEDED" else 50}
+                {"id": str(s.id), "title": (s.result or {}).get("summary", "Action"), "status": "Completed" if s.status == "SUCCEEDED" else "In Progress", "timestamp": _stamp(s.finished_at), "responsibleRole": "Recovery execution", "responsibleParty": "TRUSTCHAIN", "details": ", ".join(f"{k}: {v}" for k, v in ((s.result or {}).get("changed") or {}).items()), "progressPercent": 100 if s.status == "SUCCEEDED" else 50}
                 for s in steps
             ],
         }

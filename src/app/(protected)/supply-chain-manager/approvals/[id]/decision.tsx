@@ -339,7 +339,7 @@ export default function ApprovalDecisionScreen() {
             {isBackendOnline() && decisionMode === 'approve' ? (
               <Pressable style={styles.successPrimaryBtn} onPress={handleConfirmExecution} disabled={executing || executed} accessibilityRole="button">
                 <Text style={styles.successPrimaryBtnText}>
-                  {executed ? 'Recovery actions completed (simulated)' : executing ? 'Running…' : 'Confirm execution'}
+                  {executed ? 'Recovery actions completed' : executing ? 'Running…' : 'Confirm execution'}
                 </Text>
               </Pressable>
             ) : null}

@@ -14,9 +14,9 @@ from ..models.base import utcnow
 from ..models.governance import AuditEvent, Notification
 from ..models.identity import Organization, Role, User, UserRole
 from ..models.intelligence import Disruption, ImpactAssessment, ImpactAssessmentLine, RiskAssessment
-from ..models.inventory import CustomerOrder, FulfilmentAllocation, Inventory, InventoryAdjustment, OrderItem
+from ..models.inventory import CustomerOrder, FulfilmentAllocation, Inventory, InventoryAdjustment, OrderItem, StockTransfer
 from ..models.recovery import Approval, ExecutionAction, ExecutionRun, RecoveryPlan, RecoveryPlanAction
-from ..models.supply_chain import Carrier, CarrierEvent, Product, Shipment, ShipmentItem, Supplier, SupplierProduct, Warehouse
+from ..models.supply_chain import Carrier, CarrierEvent, Product, Shipment, ShipmentItem, Supplier, SupplierProduct, Warehouse, PurchaseOrder, PurchaseOrderItem, RouteAlternative
 from ..risk import service as risk_service, training
 from ..recommendations import ai
 from ..recommendations import engine as recommendations
@@ -425,11 +425,10 @@ def confirm_execution(db: Session, org: Organization, user: User, key: str) -> E
         record = ExecutionAction(organization_id=org.id, run_id=run.id, plan_action_id=action.id, status="RUNNING", idempotency_key=f"{run.id}:{action.id}", attempts=1, started_at=utcnow())
         db.add(record)
         db.flush()
-        if action.action_type == "STOCK_TRANSFER":
-            _simulate_transfer(db, org, user, action.parameters)
+        changed = _apply_action(db, org, user, plan, action)
         record.status = "SUCCEEDED"
         record.finished_at = utcnow()
-        record.result = {"simulated": True, "summary": action.parameters["title"]}
+        record.result = {"summary": action.parameters["title"], "changed": changed}
         results.append(record.result)
     run.status = "COMPLETED"
     run.finished_at = utcnow()
@@ -439,15 +438,55 @@ def confirm_execution(db: Session, org: Organization, user: User, key: str) -> E
     _mitigate_orders(db, org, disruption, plan)
     evidence = "0x" + hashlib.sha256(jcs.canonicalize({"plan": _chain_plan_id(org, key), "version": plan.version, "results": results})).hexdigest()
     sent = _chain_tx(db, org.id, "evidence", key, lambda: chain.anchor_execution(_chain_plan_id(org, key), plan.version, evidence))
-    audit(db, org.id, user.id, "EXECUTION_COMPLETED", "plan", key, {"evidence_hash": evidence, "tx": sent["tx_hash"], "chain_status": sent["chain_status"], "simulated": True}, plan.version)
-    _notify(db, org.id, "OPERATIONS_ANALYST", "EXECUTION_COMPLETED", "INFO", f"{key}: recovery completed", "Actions were simulated and recorded.", key, f"executed:{key}:{plan.version}")
+    audit(db, org.id, user.id, "EXECUTION_COMPLETED", "plan", key, {"evidence_hash": evidence, "tx": sent["tx_hash"], "chain_status": sent["chain_status"]}, plan.version)
+    _notify(db, org.id, "OPERATIONS_ANALYST", "EXECUTION_COMPLETED", "INFO", f"{key}: recovery completed", "Stock, shipment and purchase records were updated.", key, f"executed:{key}:{plan.version}")
     db.commit()
     return run
 
 
-def _simulate_transfer(db: Session, org: Organization, user: User, params: Dict[str, Any]) -> None:
+def _apply_action(db: Session, org: Organization, user: User, plan: RecoveryPlan, action: RecoveryPlanAction) -> Dict[str, Any]:
+    """Changes the operational records this action covers. Nothing here contacts a real carrier or supplier."""
+    if action.action_type == "STOCK_TRANSFER":
+        return _apply_transfer(db, org, user, action)
+    if action.action_type == "SHIPMENT_REROUTE":
+        return _apply_reroute(db, plan, action.parameters)
+    return _apply_purchase(db, org, plan, action)
+
+
+def _apply_reroute(db: Session, plan: RecoveryPlan, params: Dict[str, Any]) -> Dict[str, Any]:
+    disruption = db.get(Disruption, plan.disruption_id)
+    shipment = db.get(Shipment, disruption.affected_entity_id)
+    route = db.get(RouteAlternative, uuid.UUID(params["route_id"]))
+    shipment.carrier_id = route.carrier_id
+    shipment.route_risk = float(shipment.route_risk or 0) * float(route.risk_multiplier)
+    shipment.current_eta = aware(shipment.expected_arrival_at) + datetime.timedelta(hours=float(route.added_transit_hours))
+    shipment.tracking_reference = route.name[:120]
+    db.flush()
+    return {"shipment": shipment.code, "route": route.name, "new_eta": aware(shipment.current_eta).strftime("%d %b %Y %H:%M UTC")}
+
+
+def _apply_purchase(db: Session, org: Organization, plan: RecoveryPlan, action: RecoveryPlanAction) -> Dict[str, Any]:
+    params = action.parameters
+    supplier = db.query(Supplier).filter_by(organization_id=org.id, code=params["supplier_code"]).one()
+    order = db.query(CustomerOrder).filter_by(organization_id=org.id, code=params["orders"][0]).one()
+    line = db.query(OrderItem).filter_by(order_id=order.id).first()
+    code = f"PO-{plan.id.hex[:8]}-{action.sequence}"
+    purchase = PurchaseOrder(id=uuid.uuid4(), organization_id=org.id, code=code, supplier_id=supplier.id, status="OPEN", order_date=utcnow().date(), total_cost=params["cost"])
+    db.add(purchase)
+    db.flush()
+    db.add(PurchaseOrderItem(organization_id=org.id, purchase_order_id=purchase.id, product_id=line.product_id, quantity=params["quantity"]))
+    db.flush()
+    return {"purchase_order": code, "supplier": supplier.code, "quantity": params["quantity"]}
+
+
+def _apply_transfer(db: Session, org: Organization, user: User, action: RecoveryPlanAction) -> Dict[str, Any]:
+    params = action.parameters
     source = db.get(Inventory, uuid.UUID(params["inventory_id"]))
     quantity = params["quantity"]
+    db.add(StockTransfer(
+        organization_id=org.id, product_id=source.product_id, from_warehouse_id=source.warehouse_id, to_warehouse_id=uuid.UUID(params["warehouse_to"]), recovery_action_id=action.id,
+        quantity=quantity, status="COMPLETED", requested_by=user.id, confirmed_by=user.id, confirmed_at=utcnow(),
+    ))
     source.on_hand_quantity = float(source.on_hand_quantity) - quantity
     db.add(InventoryAdjustment(organization_id=org.id, inventory_id=source.id, adjustment_type="TRANSFER_OUT", quantity_delta=-quantity, actor_id=user.id, reason=params["title"], reference_type="recovery_plan"))
     destination = db.query(Inventory).filter_by(warehouse_id=uuid.UUID(params["warehouse_to"]), product_id=uuid.UUID(params["product_id"])).first()
@@ -456,6 +495,7 @@ def _simulate_transfer(db: Session, org: Organization, user: User, params: Dict[
         destination.reserved_quantity = float(destination.reserved_quantity) + quantity
         db.add(InventoryAdjustment(organization_id=org.id, inventory_id=destination.id, adjustment_type="TRANSFER_IN", quantity_delta=quantity, actor_id=user.id, reason=params["title"], reference_type="recovery_plan"))
     db.flush()
+    return {"stock_moved": quantity, "from": params.get("source", ""), "to": params.get("destination", "")}
 
 
 def _mitigate_orders(db: Session, org: Organization, disruption: Disruption, plan: RecoveryPlan) -> None:
